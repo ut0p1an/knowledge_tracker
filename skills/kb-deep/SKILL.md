@@ -1,19 +1,36 @@
 ---
 name: kb-deep
 description: Use when the user wants a comprehensive, in-depth explanation of a knowledge entry - full theory, detailed examples, and extended context.
-argument-hint: <entry-name>
+argument-hint: <entry-name> [direction]
 ---
 
 # Knowledge Base - Deep Dive
 
 ## Overview
 
-Expand a knowledge entry into a comprehensive learning document with full explanations, multiple examples, and contextual connections.
+Expand a knowledge entry into a comprehensive learning document with full explanations, multiple examples, and contextual connections. Optionally accepts a direction hint to focus the deep dive on a specific aspect.
+
+## Argument Parsing
+
+Parse `$ARGUMENTS` to extract:
+- **entry name** (required): the knowledge entry to expand
+- **direction** (optional): extra description guiding the focus of the deep dive
+
+Examples:
+- `/kb-deep decorators` → full deep dive on decorators
+- `/kb-deep decorators 在类中的应用` → deep dive focused on decorator usage in classes
+- `/kb-deep cap-theorem 结合实际项目选型` → deep dive focused on practical system design choices
+
+If a direction is provided, adjust the expanded content to emphasize that aspect:
+- Weight sections related to the direction more heavily (more examples, more detail)
+- Add a dedicated section addressing the direction if it doesn't fit existing sections
+- Still include the full structure, but treat the direction as the primary lens
 
 ## Workflow
 
 1. Find and read the target entry file
-2. Expand it based on type:
+2. Parse direction from arguments (if any)
+3. Expand it based on type, focusing on direction when provided:
 
 ### For "技" entries — expand to:
 
@@ -102,6 +119,8 @@ level: detailed
 ```
 
 3. Update the entry file's frontmatter: `level: detailed`
-4. Output the expanded version
-5. Remind user:
+4. Update search-index.json: find the entry by `id` and set `level: "detailed"`, update `last_updated`
+5. Output the expanded version
+6. Remind user:
    > 如需精简版本，使用 `/kb-simplify {entry}`
+   > 如需指定方向深入，使用 `/kb-deep {entry} <方向描述>`

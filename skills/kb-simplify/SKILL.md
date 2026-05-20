@@ -1,19 +1,36 @@
 ---
 name: kb-simplify
 description: Use when the user wants a simplified, condensed version of a knowledge entry - shorter explanation focused on the essentials.
-argument-hint: <entry-name>
+argument-hint: <entry-name> [direction]
 ---
 
 # Knowledge Base - Simplify Entry
 
 ## Overview
 
-Rewrite a knowledge entry to its most concise form. Reduces to core essence only.
+Rewrite a knowledge entry to its most concise form. Reduces to core essence only. Optionally accepts a direction hint to focus the simplification on a specific aspect.
+
+## Argument Parsing
+
+Parse `$ARGUMENTS` to extract:
+- **entry name** (required): the knowledge entry to simplify
+- **direction** (optional): extra description guiding the focus of the simplification
+
+Examples:
+- `/kb-simplify decorators` → general simplified view
+- `/kb-simplify decorators 只看语法` → simplified view focused on syntax only
+- `/kb-simplify cap-theorem 和数据库的关系` → simplified view focused on database relevance
+
+If a direction is provided:
+- Focus the simplified content on the specified aspect
+- Tailor the "怎么用" / "关联" sections to emphasize the direction
+- Still keep the concise format, but filter through the direction lens
 
 ## Workflow
 
 1. Find and read the target entry file
-2. Rewrite it based on type:
+2. Parse direction from arguments (if any)
+3. Rewrite it based on type, focusing on direction when provided:
 
 ### For "技" entries — simplify to:
 ```markdown
@@ -40,6 +57,8 @@ Rewrite a knowledge entry to its most concise form. Reduces to core essence only
 ```
 
 3. Update the entry file's frontmatter: `level: simplified`
-4. Output the simplified version
-5. Remind user:
+4. Update search-index.json: find the entry by `id` and set `level: "simplified"`, update `last_updated`
+5. Output the simplified version
+6. Remind user:
    > 如需恢复详细版本，使用 `/kb-deep {entry}`
+   > 如需指定方向精简，使用 `/kb-simplify {entry} <方向描述>`

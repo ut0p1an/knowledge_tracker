@@ -72,6 +72,13 @@ digraph collector {
 
 ## Entry Generation
 
+When generating an entry, also prepare the following index fields for search-index.json:
+- **id**: the topic-slug (filename without .md)
+- **tags**: 3-5 keyword tags relevant to the topic, used for search
+- **related**: IDs of related existing entries (check search-index.json for candidates)
+- **profile_domains**: which domain(s) in profile.md this entry maps to
+- **summary**: the "是什么（一句话）" or "概念说明" first sentence
+
 ### For "技" entries
 
 Create file at `~/.claude/knowledge/技/{category}/{topic-slug}.md`:
@@ -143,6 +150,28 @@ source-project: {current project name if relevant}
 3. **Update profile.md** `~/.claude/knowledge/profile.md`:
    - Adjust knowledge level assessment for the relevant domain
    - Add to "待学习" section if new domain
+
+4. **Update search-index.json** `~/.claude/knowledge/search-index.json`:
+   - Read the current JSON file
+   - Append a new entry object to the `entries` array:
+     ```json
+     {
+       "id": "{topic-slug}",
+       "type": "{技|道}",
+       "category": "{category}",
+       "title": "{Topic Name}",
+       "tags": ["{tag1}", "{tag2}", ...],
+       "related": ["{related-id-1}", ...],
+       "profile_domains": ["{domain1}", ...],
+       "level": "brief",
+       "status": "new",
+       "path": "{技|道}/{category}/{topic-slug}.md",
+       "created": "{YYYY-MM-DD}",
+       "summary": "{one-line summary}"
+     }
+     ```
+   - Update `last_updated` to current date
+   - Write the updated JSON back
 
 ## Manual Invocation
 

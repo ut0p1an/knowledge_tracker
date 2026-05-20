@@ -1,6 +1,7 @@
 # 知识库目录
 
 > 使用 `/kb-list` 查看完整目录，`/kb-detail <entry>` 查看具体条目
+> 使用 `/kb-deep <entry> [方向]` 深入讲解，`/kb-simplify <entry> [方向]` 精简讲解
 
 ## 技（实践技能）
 

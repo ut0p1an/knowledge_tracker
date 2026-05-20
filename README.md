@@ -7,8 +7,9 @@
 - **自动收集**：Claude 在 coding 过程中主动识别你的知识盲区并记录
 - **手动标记**：使用 `/learn <topic>` 随时标记感兴趣的知识点
 - **分类管理**：知识分为"技"（实践技能）和"道"（原理理论）两类
-- **按需学习**：支持精简版和深入版讲解切换
-- **知识画像**：通过自评问卷建立和维护你的知识能力模型
+- **按需学习**：支持精简版和深入版讲解切换，可指定方向
+- **结构化索引**：自动维护 search-index.json，支持标签搜索和快速检索
+- **知识画像**：通过自评+客观题问卷建立和维护你的知识能力模型
 - **全局生效**：跨项目共享，知识库持续积累
 
 ## Skills 列表
@@ -16,11 +17,11 @@
 | 命令 | 功能 |
 | --- | --- |
 | `/learn <topic>` | 手动标记一个知识点 |
-| `/kb-list [category]` | 查看知识库目录 |
+| `/kb-list [category] [--tag <tag>]` | 查看知识库目录（支持标签筛选） |
 | `/kb-detail <entry>` | 查看具体条目内容 |
 | `/kb-delete <entry>` | 删除条目 |
-| `/kb-simplify <entry>` | 精简版讲解 |
-| `/kb-deep <entry>` | 深入版讲解 |
+| `/kb-simplify <entry> [方向]` | 精简版讲解（可指定方向） |
+| `/kb-deep <entry> [方向]` | 深入版讲解（可指定方向） |
 | `/kb-assess` | 自评问卷（初始化/刷新知识画像） |
 
 另外，`knowledge-collector` 和 `knowledge-profile` 会在 coding 过程中由 Claude 自动触发，无需手动调用。
@@ -30,7 +31,7 @@
 ### Linux / macOS
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/knowledge-tracker-plugin.git
+git clone https://github.com/ut0p1an/knowledge_tracker.git
 cd knowledge-tracker-plugin
 chmod +x install.sh
 ./install.sh
@@ -39,7 +40,7 @@ chmod +x install.sh
 ### Windows (Git Bash / MSYS2)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/knowledge-tracker-plugin.git
+git clone https://github.com/ut0p1an/knowledge_tracker.git
 cd knowledge-tracker-plugin
 bash install.sh
 ```
@@ -47,7 +48,7 @@ bash install.sh
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/YOUR_USERNAME/knowledge-tracker-plugin.git
+git clone https://github.com/ut0p1an/knowledge_tracker.git
 cd knowledge-tracker-plugin
 .\install.ps1
 ```
@@ -65,6 +66,7 @@ mkdir -p ~/.claude/knowledge/技 ~/.claude/knowledge/道
 cp knowledge-template/INDEX.md ~/.claude/knowledge/
 cp knowledge-template/profile.md ~/.claude/knowledge/
 cp knowledge-template/assess-history.json ~/.claude/knowledge/
+cp knowledge-template/search-index.json ~/.claude/knowledge/
 ```
 
 安装后**重启 Claude Code** 使 skills 生效。
@@ -98,11 +100,14 @@ Claude 会询问你的角色、经验、并对各领域给出评估问卷，建�
 ### 3. 查看和管理知识库
 
 ```
-/kb-list              # 查看总目录
-/kb-list python       # 查看 python 分类
+/kb-list              # 查看总目录（带摘要）
+/kb-list python       # 查看 python 分类（带标签和摘要）
+/kb-list --tag 元编程  # 按标签筛选条目
 /kb-detail asyncio    # 查看具体条目
 /kb-simplify asyncio  # 精简版
+/kb-simplify asyncio 只看语法          # 精简版，聚焦语法
 /kb-deep asyncio      # 深入版
+/kb-deep asyncio 和多线程的配合使用    # 深入版，聚焦多线程方向
 /kb-delete asyncio    # 删除
 ```
 
@@ -178,7 +183,8 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 │   └── knowledge-profile/SKILL.md
 │
 └── knowledge/                       # 知识库数据
-    ├── INDEX.md                     # 总目录
+    ├── INDEX.md                     # 总目录（Markdown 格式，人类可读）
+    ├── search-index.json            # 结构化索引（机器检索用）
     ├── profile.md                   # 知识画像
     ├── assess-history.json          # 问卷历史（避免重复）
     ├── 技/                          # 实践技能
@@ -190,6 +196,47 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
             ├── _catalog.md
             └── {topic}.md
 ```
+
+### search-index.json 结构
+
+每次增删条目时自动维护的结构化索引，用于快速检索、标签筛选和画像联动：
+
+```json
+{
+  "version": 1,
+  "last_updated": "2026-05-20",
+  "entries": [
+    {
+      "id": "decorators",
+      "type": "技",
+      "category": "python",
+      "title": "Python 装饰器",
+      "tags": ["python", "函数", "元编程"],
+      "related": ["context-managers"],
+      "profile_domains": ["python"],
+      "level": "brief",
+      "status": "new",
+      "path": "技/python/decorators.md",
+      "created": "2026-05-20",
+      "summary": "用 @语法 包装函数，添加额外行为"
+    }
+  ]
+}
+```
+
+字段说明：
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 条目标识（文件名去 .md） |
+| `type` | "技" 或 "道" |
+| `category` | 子分类目录名 |
+| `tags` | 关键词标签，用于搜索和筛选 |
+| `related` | 关联条目 ID 列表 |
+| `profile_domains` | 对应知识画像中的领域 |
+| `level` | 当前详细程度：brief / simplified / detailed |
+| `status` | new（新增）或 reviewed（已复习） |
+| `path` | 相对于 knowledge/ 的文件路径 |
+| `summary` | 一句话摘要 |
 
 ## 卸载
 

@@ -20,6 +20,11 @@ Delete a specific knowledge entry and update all index files.
    - Delete the entry `.md` file
    - Remove entry from `~/.claude/knowledge/{技|道}/{category}/_catalog.md`
    - Remove entry from `~/.claude/knowledge/INDEX.md`
+   - Remove entry from `~/.claude/knowledge/search-index.json`:
+     - Read the JSON, filter out the entry by `id` from the `entries` array
+     - Also remove this `id` from any other entry's `related` array
+     - Update `last_updated` to current date
+     - Write back
    - Update profile.md if needed (remove from 待学习 if present)
 5. Output:
    > 已删除「{entry name}」
