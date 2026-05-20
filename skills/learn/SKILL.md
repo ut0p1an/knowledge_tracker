@@ -21,11 +21,9 @@ digraph learn {
     "Classify" -> "技 or 道?";
     "技 or 道?" -> "Ambiguous?" [label="unclear"];
     "Ambiguous?" -> "Ask user to clarify";
-    "Ask user to clarify" -> "Generate entry";
-    "技 or 道?" -> "Generate entry" [label="clear"];
-    "Generate entry" -> "Update INDEX + catalog + search-index";
-    "Update INDEX + catalog + search-index" -> "Update profile.md";
-    "Update profile.md" -> "Output confirmation";
+    "Ask user to clarify" -> "Output confirmation";
+    "技 or 道?" -> "Output confirmation" [label="clear"];
+    "Output confirmation" -> "Background Agent: init entry";
 }
 ```
 
@@ -35,7 +33,7 @@ digraph learn {
 - Examples: `/learn FastAPI依赖注入`, `/learn CAP定理`, `/learn Python装饰器`
 - If no argument provided, ask user: "请输入你想记录的知识点主题"
 
-## Steps
+## Steps (Synchronous — main flow)
 
 1. **Parse topic** from `$ARGUMENTS`
 2. **Read profile** at `~/.claude/knowledge/profile.md` to check existing knowledge level
@@ -44,8 +42,8 @@ digraph learn {
    - If clearly practical (framework API, tool usage, coding pattern) → 技
    - If clearly theoretical (design pattern, algorithm theory, architecture principle) → 道
    - If ambiguous → ask user via AskUserQuestion: "「{topic}」属于哪个类别？" with options "技（实践技能）" and "道（原理理论）"
-5. **Generate entry** file and update all indexes (same as knowledge-collector's entry generation)
-6. **Output confirmation**
+5. **Output confirmation** immediately (see Output section)
+6. **Launch background Agent** to generate entry content and update all files (see Background Entry Initialization section)
 
 ## Classification Rules
 
@@ -61,20 +59,73 @@ digraph learn {
 - Distributed systems concepts
 - Mathematical/theoretical foundations
 
-## Entry Generation
+## Output
 
-When generating an entry, also prepare the following index fields for search-index.json:
-- **id**: the topic-slug (filename without .md)
-- **tags**: 3-5 keyword tags relevant to the topic, used for search
-- **related**: IDs of related existing entries (check search-index.json for candidates)
-- **profile_domains**: which domain(s) in profile.md this entry maps to
-- **summary**: the "是什么（一句话）" or "概念说明" first sentence
+After classification is determined, **immediately** output (do NOT wait for the background Agent):
+> 已记录「{topic}」到知识库 [{技|道}/{category}]，正在后台生成内容...
 
-### For "技" entries
+Then remind available follow-up commands:
+- `/kb-detail {entry}` — 查看条目内容
+- `/kb-simplify {entry} [方向]` — 精简讲解
+- `/kb-deep {entry} [方向]` — 深入讲解
 
-Create file at `~/.claude/knowledge/技/{category}/{topic-slug}.md`:
+## Background Entry Initialization
 
-```markdown
+After outputting the confirmation, launch a background Agent to generate the entry and update all index files. Use the `Agent` tool with `run_in_background: true`.
+
+### Agent Prompt Construction
+
+Build the prompt by filling in the following template with the values determined during the synchronous steps:
+
+```
+你是知识库内容生成助手。请完成以下任务：
+
+## 任务信息
+- 知识点名称: {Topic Name}
+- 类型: {技|道}
+- 分类: {category}
+- 文件ID (slug): {topic-slug}
+- 条目文件路径: ~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md
+- 用户画像路径: ~/.claude/knowledge/profile.md
+
+## 步骤
+
+### 1. 读取用户画像
+读取 `~/.claude/knowledge/profile.md`，了解用户背景和现有知识水平，以便生成贴合用户水平的内容。
+
+### 2. 创建目录（如需要）
+确保 `~/.claude/knowledge/{技|道}/{category}/` 目录存在。
+
+### 3. 生成条目文件
+根据类型生成条目内容并写入文件。
+
+{INSERT_TEMPLATE_FOR_TYPE — see "Entry Templates" below}
+
+### 4. 更新分类目录
+读取 `~/.claude/knowledge/{技|道}/{category}/_catalog.md`（若不存在则新建），添加本条目的一行描述。
+
+### 5. 更新 INDEX.md
+读取 `~/.claude/knowledge/INDEX.md`，在对应的「技」或「道」章节下添加条目链接。更新底部统计数字。
+
+### 6. 更新 search-index.json
+读取 `~/.claude/knowledge/search-index.json`，向 entries 数组追加：
+{INSERT_SEARCH_INDEX_ENTRY — see "Search Index Entry" below}
+更新 `last_updated` 为当前日期。
+
+### 7. 更新 profile.md
+读取 `~/.claude/knowledge/profile.md`，在相关领域调整评级或在「待学习」区域添加新条目。
+
+### 8. 发送通知
+使用 PushNotification 工具通知用户：「{Topic Name}」知识条目已生成完成
+```
+
+### Entry Templates
+
+**For "技" entries** — include this in the Agent prompt:
+
+```
+按以下模板生成「技」类型条目文件：
+
 ---
 type: 技
 category: {category}
@@ -100,11 +151,11 @@ source-project: {current project name if relevant}
 - {pitfall 2}
 ```
 
-### For "道" entries
+**For "道" entries** — include this in the Agent prompt:
 
-Create file at `~/.claude/knowledge/道/{category}/{topic-slug}.md`:
+```
+按以下模板生成「道」类型条目文件：
 
-```markdown
 ---
 type: 道
 category: {category}
@@ -130,49 +181,28 @@ source-project: {current project name if relevant}
 {brief pointer to what deeper study looks like}
 ```
 
-## File Updates After Recording
+### Search Index Entry
 
-1. **Update category catalog** `~/.claude/knowledge/{技|道}/{category}/_catalog.md`:
-   - Add entry to the list with one-line description
+Include this in the Agent prompt for the search-index.json update:
 
-2. **Update INDEX.md** `~/.claude/knowledge/INDEX.md`:
-   - Add entry under appropriate category section
+```json
+{
+  "id": "{topic-slug}",
+  "type": "{技|道}",
+  "category": "{category}",
+  "title": "{Topic Name}",
+  "tags": ["{tag1}", "{tag2}", ...],
+  "related": ["{related-id-1}", ...],
+  "profile_domains": ["{domain1}", ...],
+  "level": "brief",
+  "status": "new",
+  "path": "{技|道}/{category}/{topic-slug}.md",
+  "created": "{YYYY-MM-DD}",
+  "summary": "{one-line summary}"
+}
+```
 
-3. **Update profile.md** `~/.claude/knowledge/profile.md`:
-   - Adjust knowledge level assessment for the relevant domain
-   - Add to "待学习" section if new domain
-
-4. **Update search-index.json** `~/.claude/knowledge/search-index.json`:
-   - Read the current JSON file
-   - Append a new entry object to the `entries` array:
-     ```json
-     {
-       "id": "{topic-slug}",
-       "type": "{技|道}",
-       "category": "{category}",
-       "title": "{Topic Name}",
-       "tags": ["{tag1}", "{tag2}", ...],
-       "related": ["{related-id-1}", ...],
-       "profile_domains": ["{domain1}", ...],
-       "level": "brief",
-       "status": "new",
-       "path": "{技|道}/{category}/{topic-slug}.md",
-       "created": "{YYYY-MM-DD}",
-       "summary": "{one-line summary}"
-     }
-     ```
-   - Update `last_updated` to current date
-   - Write the updated JSON back
-
-## Output
-
-After successful recording:
-> 已记录「{topic}」到知识库 [{技|道}/{category}]
-
-Then remind available follow-up commands:
-- `/kb-detail {entry}` — 查看条目内容
-- `/kb-simplify {entry} [方向]` — 精简讲解
-- `/kb-deep {entry} [方向]` — 深入讲解
+Tags, related entries, profile_domains, and summary should be determined by the Agent based on the generated content and existing search-index.json entries.
 
 ## Important
 
@@ -180,3 +210,5 @@ Then remind available follow-up commands:
 - Check for duplicate entries in search-index.json before creating
 - Keep entries concise at initial creation — user can request `/kb-deep` later
 - Use Chinese for all entry content by default
+- The synchronous flow must complete BEFORE the Agent starts — the Agent needs the classification result
+- The Agent prompt must be **self-contained** — include all templates, paths, and rules directly in the prompt since the Agent cannot access this skill file
