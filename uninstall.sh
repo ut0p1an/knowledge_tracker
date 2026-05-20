@@ -14,7 +14,7 @@ echo ""
 
 # Remove skills
 echo "[1/2] Removing skills..."
-for skill in knowledge-collector kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
+for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
     if [ -d "$SKILLS_DIR/$skill" ]; then
         rm -rf "$SKILLS_DIR/$skill"
         echo "      - $skill"

@@ -21,7 +21,7 @@ if (-not (Test-Path $ClaudeDir)) {
 }
 
 # Check for existing skills
-$skills = @("knowledge-collector", "kb-list", "kb-detail", "kb-delete", "kb-simplify", "kb-deep", "kb-assess", "knowledge-profile")
+$skills = @("knowledge-collector", "learn", "kb-list", "kb-detail", "kb-delete", "kb-simplify", "kb-deep", "kb-assess", "knowledge-profile")
 $existingCount = 0
 foreach ($skill in $skills) {
     if (Test-Path (Join-Path $SkillsDir $skill)) {
@@ -113,7 +113,7 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "  Installation complete!" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Skills installed: $installedCount/8"
+Write-Host "  Skills installed: $installedCount/9"
 Write-Host "  Knowledge base:   $KnowledgeDir"
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor Green

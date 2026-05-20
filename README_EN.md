@@ -175,7 +175,8 @@ ASK_ON_UNCERTAIN: true       # true = ask user for confirmation when uncertain
 ```
 ~/.claude/
 ├── skills/                          # Skills directory
-│   ├── knowledge-collector/SKILL.md
+│   ├── knowledge-collector/SKILL.md  # Auto-detect knowledge gaps (Claude internal)
+│   ├── learn/SKILL.md                # /learn manual knowledge tagging
 │   ├── kb-list/SKILL.md
 │   ├── kb-detail/SKILL.md
 │   ├── kb-delete/SKILL.md
@@ -245,6 +246,7 @@ Field descriptions:
 ```bash
 # Remove skills
 rm -rf ~/.claude/skills/knowledge-collector
+rm -rf ~/.claude/skills/learn
 rm -rf ~/.claude/skills/kb-list
 rm -rf ~/.claude/skills/kb-detail
 rm -rf ~/.claude/skills/kb-delete

@@ -23,7 +23,7 @@ fi
 
 # Check for existing skills and warn
 EXISTING_SKILLS=0
-for skill in knowledge-collector kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
+for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
     if [ -d "$SKILLS_DIR/$skill" ]; then
         EXISTING_SKILLS=$((EXISTING_SKILLS + 1))
     fi
@@ -84,7 +84,7 @@ echo ""
 # Summary
 echo "[3/3] Verifying installation..."
 INSTALLED_COUNT=0
-for skill in knowledge-collector kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
+for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
     if [ -f "$SKILLS_DIR/$skill/SKILL.md" ]; then
         INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
     else
@@ -97,7 +97,7 @@ echo "================================================"
 echo "  Installation complete!"
 echo "================================================"
 echo ""
-echo "  Skills installed: $INSTALLED_COUNT/8"
+echo "  Skills installed: $INSTALLED_COUNT/9"
 echo "  Knowledge base:   $KNOWLEDGE_DIR"
 echo ""
 echo "  Next steps:"

@@ -1,64 +1,51 @@
 ---
-name: knowledge-collector
-description: Use when coding and detecting the user may not understand a framework, library, design pattern, algorithm, or theoretical concept being used. This is an auto-detection skill — Claude triggers it during coding sessions, not the user directly. For manual knowledge recording, the user should use /learn instead.
-user-invocable: false
+name: learn
+description: Use when the user explicitly invokes /learn to manually mark a knowledge point for collection into the knowledge base. Accepts a topic name or description as argument.
+argument-hint: <topic>
 ---
 
-# Knowledge Collector (Auto-Detection)
+# Learn - Manual Knowledge Point Collection
 
 ## Overview
 
-Automatically identify knowledge gaps during vibe coding sessions and collect them into a persistent, categorized knowledge base. This skill is triggered by Claude internally when it detects the user may be unfamiliar with a concept — it is NOT invoked manually. For manual recording, users should use `/learn <topic>`.
+Manually add a knowledge point to the knowledge base. This is the user-facing command for explicitly marking topics they want to learn or record.
 
-## Configuration
-
-```yaml
-# Control variables - adjust behavior
-AUTO_NOTIFY_ONLY: true       # true = high confidence: just notify, don't ask
-ASK_ON_UNCERTAIN: true       # true = uncertain cases: ask user before recording
-```
-
-When `AUTO_NOTIFY_ONLY` is true and confidence is high, simply output one line:
-> "已记录「{topic}」到知识库 [{技|道}/{category}]"
-
-When `ASK_ON_UNCERTAIN` is true and confidence is uncertain, ask:
-> "你对「{topic}」了解吗？需要我记录到知识库吗？"
-
-## When to Use
-
-- During coding when the user asks questions revealing unfamiliarity with a concept
-- When the user's code shows patterns suggesting they're unfamiliar with a framework/library feature
-- When the user says "这个是什么", "我不太懂", "记一下这个"
-
-## When NOT to Use
-
-- User is clearly testing or reviewing code they already understand
-- Trivial syntax questions that don't represent a knowledge gap
-- User explicitly says they don't want to record
-- User explicitly invokes `/learn` — that is handled by the `learn` skill
-
-## Core Workflow
+## Workflow
 
 ```dot
-digraph collector {
-    "Detect potential gap" -> "Read profile.md";
-    "Read profile.md" -> "Already known?";
-    "Already known?" -> "Skip" [label="rated >=4"];
-    "Already known?" -> "Assess confidence" [label="no"];
-    "Assess confidence" -> "High: notify + record" [label="high"];
-    "Assess confidence" -> "Ask user" [label="uncertain"];
-    "Ask user" -> "Record" [label="yes"];
-    "Ask user" -> "Skip" [label="no"];
-    "High: notify + record" -> "Classify";
-    "Record" -> "Classify";
+digraph learn {
+    "Parse $ARGUMENTS" -> "Read profile.md";
+    "Read profile.md" -> "Already known?" ;
+    "Already known?" -> "Notify + skip" [label="yes, rated >=4"];
+    "Already known?" -> "Classify" [label="no"];
     "Classify" -> "技 or 道?";
-    "技 or 道?" -> "Generate 技 entry" [label="practical skill"];
-    "技 or 道?" -> "Generate 道 entry" [label="theory/principle"];
-    "Generate 技 entry" -> "Update INDEX + catalog + search-index";
-    "Generate 道 entry" -> "Update INDEX + catalog + search-index";
+    "技 or 道?" -> "Ambiguous?" [label="unclear"];
+    "Ambiguous?" -> "Ask user to clarify";
+    "Ask user to clarify" -> "Generate entry";
+    "技 or 道?" -> "Generate entry" [label="clear"];
+    "Generate entry" -> "Update INDEX + catalog + search-index";
     "Update INDEX + catalog + search-index" -> "Update profile.md";
+    "Update profile.md" -> "Output confirmation";
 }
 ```
+
+## Argument Parsing
+
+- `$ARGUMENTS` contains the topic name or description
+- Examples: `/learn FastAPI依赖注入`, `/learn CAP定理`, `/learn Python装饰器`
+- If no argument provided, ask user: "请输入你想记录的知识点主题"
+
+## Steps
+
+1. **Parse topic** from `$ARGUMENTS`
+2. **Read profile** at `~/.claude/knowledge/profile.md` to check existing knowledge level
+3. **Check duplicates** in `~/.claude/knowledge/search-index.json` — if an entry with matching `id` or similar `title` already exists, notify and ask if user wants to update it instead
+4. **Classify** as "技" (practical skill) or "道" (principle/theory):
+   - If clearly practical (framework API, tool usage, coding pattern) → 技
+   - If clearly theoretical (design pattern, algorithm theory, architecture principle) → 道
+   - If ambiguous → ask user via AskUserQuestion: "「{topic}」属于哪个类别？" with options "技（实践技能）" and "道（原理理论）"
+5. **Generate entry** file and update all indexes (same as knowledge-collector's entry generation)
+6. **Output confirmation**
 
 ## Classification Rules
 
@@ -177,21 +164,19 @@ source-project: {current project name if relevant}
    - Update `last_updated` to current date
    - Write the updated JSON back
 
-## Auto-Detection Signals
+## Output
 
-High confidence signals (notify only):
-- User explicitly asks "这是什么？" about a concept
-- User copies code without understanding (asks "这行什么意思")
-- User makes errors that indicate fundamental misunderstanding of a framework
+After successful recording:
+> 已记录「{topic}」到知识库 [{技|道}/{category}]
 
-Uncertain signals (ask first):
-- User writes working but non-idiomatic code
-- User asks about best practices (may already know basics)
-- Topic is adjacent to user's known expertise (check profile.md)
+Then remind available follow-up commands:
+- `/kb-detail {entry}` — 查看条目内容
+- `/kb-simplify {entry} [方向]` — 精简讲解
+- `/kb-deep {entry} [方向]` — 深入讲解
 
 ## Important
 
-- Always read `~/.claude/knowledge/profile.md` before assessing gaps
-- Never record knowledge the user clearly already knows (check profile)
+- Always read `~/.claude/knowledge/profile.md` before recording
+- Check for duplicate entries in search-index.json before creating
 - Keep entries concise at initial creation — user can request `/kb-deep` later
 - Use Chinese for all entry content by default

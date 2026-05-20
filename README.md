@@ -175,7 +175,8 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 ```
 ~/.claude/
 ├── skills/                          # Skills 目录
-│   ├── knowledge-collector/SKILL.md
+│   ├── knowledge-collector/SKILL.md  # 自动检测知识盲区（Claude 内部触发）
+│   ├── learn/SKILL.md                # /learn 手动标记知识点
 │   ├── kb-list/SKILL.md
 │   ├── kb-detail/SKILL.md
 │   ├── kb-delete/SKILL.md
@@ -245,6 +246,7 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 ```bash
 # 删除 skills
 rm -rf ~/.claude/skills/knowledge-collector
+rm -rf ~/.claude/skills/learn
 rm -rf ~/.claude/skills/kb-list
 rm -rf ~/.claude/skills/kb-detail
 rm -rf ~/.claude/skills/kb-delete
