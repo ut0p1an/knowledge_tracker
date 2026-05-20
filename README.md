@@ -1,5 +1,7 @@
 # Knowledge Tracker for Claude Code
 
+[English](README_EN.md)
+
 一个用于 Claude Code 的知识缺口追踪系统。在 vibe coding 过程中自动识别和收集你不熟悉的知识点，建立个人知识库，支持分类管理和按需学习。
 
 ## Features
