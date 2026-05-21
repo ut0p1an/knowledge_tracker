@@ -1,64 +1,100 @@
 ---
 name: knowledge-collector
-description: Use when coding and detecting the user may not understand a framework, library, design pattern, algorithm, or theoretical concept being used. This is an auto-detection skill — Claude triggers it during coding sessions, not the user directly. For manual knowledge recording, the user should use /learn instead.
+description: Always-on knowledge gap detector. In ANY conversation scenario (coding, Q&A, discussion, debugging, learning), detect concepts the user is unfamiliar with and silently record them. This is NOT limited to coding sessions. Triggers on questions about concepts, requests for explanation, confusion signals, or topics below user's profile level.
 user-invocable: false
 ---
 
-# Knowledge Collector (Auto-Detection)
+# Knowledge Collector (Always-On Auto-Detection)
 
 ## Overview
 
-Automatically identify knowledge gaps during vibe coding sessions and collect them into a persistent, categorized knowledge base. This skill is triggered by Claude internally when it detects the user may be unfamiliar with a concept — it is NOT invoked manually. For manual recording, users should use `/learn <topic>`.
+Continuously monitor ALL interactions for knowledge gaps and automatically collect them into the knowledge base. This skill operates in every scenario — coding, Q&A, theoretical discussions, debugging, architecture talks, learning sessions, etc.
+
+**Key principle: detect → record → explain in background → never interrupt the main flow.**
 
 ## Configuration
 
 ```yaml
-# Control variables - adjust behavior
-AUTO_NOTIFY_ONLY: true       # true = high confidence: just notify, don't ask
-ASK_ON_UNCERTAIN: true       # true = uncertain cases: ask user before recording
+AUTO_NOTIFY_ONLY: true       # high confidence: just notify, don't ask
+ASK_ON_UNCERTAIN: true       # uncertain cases: ask user before recording
+BACKGROUND_EXPLAIN: true     # launch sub-agent to generate detailed explanation
 ```
 
-When `AUTO_NOTIFY_ONLY` is true and confidence is high, simply output one line:
-> "已记录「{topic}」到知识库 [{技|道}/{category}]"
+## When to Use (ALL scenarios)
 
-When `ASK_ON_UNCERTAIN` is true and confidence is uncertain, ask:
-> "你对「{topic}」了解吗？需要我记录到知识库吗？"
+### High Confidence Signals (auto-record, no asking)
 
-## When to Use
+**In Q&A / Discussion:**
+- User asks "X是什么" / "什么是X" / "X是为了什么" about a concept
+- User asks for explanation of a term, principle, or mechanism
+- User asks follow-up questions that reveal incomplete understanding (e.g., "为什么这里要..." / "这个参数是干什么的")
+- User asks about relationships between concepts ("X和Y有什么区别")
+- User explicitly requests to understand something ("给我讲解一下X")
 
-- During coding when the user asks questions revealing unfamiliarity with a concept
-- When the user's code shows patterns suggesting they're unfamiliar with a framework/library feature
-- When the user says "这个是什么", "我不太懂", "记一下这个"
+**In Coding:**
+- User asks "这行什么意思" / "这个函数做什么"
+- User makes errors indicating fundamental misunderstanding
+- User copies code without understanding and asks about it
+- User's code shows anti-patterns suggesting unfamiliarity
+
+**In Debugging:**
+- User asks about error messages or concepts within errors
+- User doesn't understand why something fails
+
+**Universal:**
+- User says "我不太懂", "没听过", "第一次见", "记一下"
+- Topic is rated < 4 in user's profile AND user is clearly learning it (not just mentioning it)
+
+### Uncertain Signals (ask first)
+
+- User writes working but non-idiomatic code (may already know the better way)
+- User asks about best practices (may already know basics)
+- Topic is adjacent to user's known expertise (★★★+) — they might just be confirming
+- User is comparing approaches (may understand both, just choosing)
 
 ## When NOT to Use
 
-- User is clearly testing or reviewing code they already understand
-- Trivial syntax questions that don't represent a knowledge gap
+- User is clearly testing/reviewing code they already understand
+- Trivial questions that don't represent a knowledge gap (e.g., "这个文件在哪")
 - User explicitly says they don't want to record
-- User explicitly invokes `/learn` — that is handled by the `learn` skill
+- User explicitly invokes `/learn` — handled by the `learn` skill
+- Topic already exists in knowledge base at same or higher level (check search-index.json)
+- Topic is rated ★★★★+ in profile.md (user already knows it well)
 
 ## Core Workflow
 
 ```dot
 digraph collector {
-    "Detect potential gap" -> "Read profile.md";
-    "Read profile.md" -> "Already known?";
-    "Already known?" -> "Skip" [label="rated >=4"];
-    "Already known?" -> "Assess confidence" [label="no"];
+    "Any user interaction" -> "Detect potential gap?";
+    "Detect potential gap?" -> "Skip" [label="no gap"];
+    "Detect potential gap?" -> "Read profile.md + search-index.json";
+    "Read profile.md + search-index.json" -> "Already known/recorded?";
+    "Already known/recorded?" -> "Skip" [label="profile >=4 or entry exists"];
+    "Already known/recorded?" -> "Assess confidence" [label="gap confirmed"];
     "Assess confidence" -> "High: notify + record" [label="high"];
     "Assess confidence" -> "Ask user" [label="uncertain"];
     "Ask user" -> "Record" [label="yes"];
     "Ask user" -> "Skip" [label="no"];
-    "High: notify + record" -> "Classify";
-    "Record" -> "Classify";
-    "Classify" -> "技 or 道?";
-    "技 or 道?" -> "Generate 技 entry" [label="practical skill"];
-    "技 or 道?" -> "Generate 道 entry" [label="theory/principle"];
-    "Generate 技 entry" -> "Update INDEX + catalog + search-index";
-    "Generate 道 entry" -> "Update INDEX + catalog + search-index";
-    "Update INDEX + catalog + search-index" -> "Update profile.md";
+    "High: notify + record" -> "Classify + Record";
+    "Record" -> "Classify + Record";
+    "Classify + Record" -> "Launch background Agent";
+    "Launch background Agent" -> "Continue main conversation (no interruption)";
 }
 ```
+
+## Execution Flow (Non-Blocking)
+
+**CRITICAL: The main conversation must NOT be interrupted.** Follow this order:
+
+1. **Detect** the knowledge gap from user's message
+2. **Check** profile.md and search-index.json (quick read, inline)
+3. **Classify** as 技 or 道
+4. **Output one notification line** (appended naturally to your main response):
+   > 📝 已记录「{topic}」到知识库 [{技|道}/{category}]
+5. **Continue answering the user's actual question** as normal
+6. **After your main response is complete**, launch a background Agent to generate the entry
+
+The notification line should be placed at the END of your response, after you've fully answered the user's question. It should feel like a footnote, not an interruption.
 
 ## Classification Rules
 
@@ -74,18 +110,55 @@ digraph collector {
 - Distributed systems concepts
 - Mathematical/theoretical foundations
 
-## Entry Generation
+## Background Agent Task
 
-When generating an entry, also prepare the following index fields for search-index.json:
-- **id**: the topic-slug (filename without .md)
-- **tags**: 3-5 keyword tags relevant to the topic, used for search
-- **related**: IDs of related existing entries (check search-index.json for candidates)
-- **profile_domains**: which domain(s) in profile.md this entry maps to
-- **summary**: the "是什么（一句话）" or "概念说明" first sentence
+After outputting your main response + notification, launch a background Agent (`run_in_background: true`) with a self-contained prompt to:
 
-### For "技" entries
+1. Create the entry file at `~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md`
+2. Update `_catalog.md` for the category
+3. Update `INDEX.md`
+4. Update `search-index.json`
+5. Optionally update `profile.md`
+6. Send PushNotification when done
 
-Create file at `~/.claude/knowledge/技/{category}/{topic-slug}.md`:
+### Agent Prompt Template
+
+```
+你是知识库内容生成助手。请完成以下任务：
+
+## 任务信息
+- 知识点名称: {Topic Name}
+- 类型: {技|道}
+- 分类: {category}
+- 文件ID (slug): {topic-slug}
+- 条目文件路径: ~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md
+- 用户画像路径: ~/.claude/knowledge/profile.md
+- 用户背景摘要: {从profile中提取的相关信息}
+
+## 步骤
+
+### 1. 创建目录（如需要）
+确保 `~/.claude/knowledge/{技|道}/{category}/` 目录存在。
+
+### 2. 生成条目文件
+{根据类型插入对应模板 — 见下方}
+
+### 3. 更新分类目录
+读取 `~/.claude/knowledge/{技|道}/{category}/_catalog.md`（若不存在则新建），添加本条目。
+
+### 4. 更新 INDEX.md
+读取 `~/.claude/knowledge/INDEX.md`，在对应章节下添加条目链接，更新统计数字。
+
+### 5. 更新 search-index.json
+读取 `~/.claude/knowledge/search-index.json`，追加条目，更新 last_updated。
+
+### 6. 发送通知
+使用 PushNotification 通知用户：「{Topic Name}」知识条目已生成完成
+```
+
+### Entry Templates
+
+**For "技" entries:**
 
 ```markdown
 ---
@@ -113,9 +186,7 @@ source-project: {current project name if relevant}
 - {pitfall 2}
 ```
 
-### For "道" entries
-
-Create file at `~/.claude/knowledge/道/{category}/{topic-slug}.md`:
+**For "道" entries:**
 
 ```markdown
 ---
@@ -129,7 +200,7 @@ source-project: {current project name if relevant}
 # {Topic Name}
 
 ## 概念说明
-{2-3 sentence explanation}
+{2-3 sentence explanation, tailored to user's level}
 
 ## 相关领域
 - {related domain 1}
@@ -143,55 +214,43 @@ source-project: {current project name if relevant}
 {brief pointer to what deeper study looks like}
 ```
 
-## File Updates After Recording
+### Search Index Entry Format
 
-1. **Update category catalog** `~/.claude/knowledge/{技|道}/{category}/_catalog.md`:
-   - Add entry to the list with one-line description
+```json
+{
+  "id": "{topic-slug}",
+  "type": "{技|道}",
+  "category": "{category}",
+  "title": "{Topic Name}",
+  "tags": ["{tag1}", "{tag2}", ...],
+  "related": ["{related-id-1}", ...],
+  "profile_domains": ["{domain1}", ...],
+  "level": "brief",
+  "status": "new",
+  "path": "{技|道}/{category}/{topic-slug}.md",
+  "created": "{YYYY-MM-DD}",
+  "summary": "{one-line summary}"
+}
+```
 
-2. **Update INDEX.md** `~/.claude/knowledge/INDEX.md`:
-   - Add entry under appropriate category section
+## Deduplication Rules
 
-3. **Update profile.md** `~/.claude/knowledge/profile.md`:
-   - Adjust knowledge level assessment for the relevant domain
-   - Add to "待学习" section if new domain
+Before recording, check:
+1. `search-index.json` — does an entry with same `id` or very similar `title` exist?
+2. If yes and level is "brief" → skip (user can `/kb-deep` it later)
+3. If yes and the new context adds significant new angle → update existing entry instead
 
-4. **Update search-index.json** `~/.claude/knowledge/search-index.json`:
-   - Read the current JSON file
-   - Append a new entry object to the `entries` array:
-     ```json
-     {
-       "id": "{topic-slug}",
-       "type": "{技|道}",
-       "category": "{category}",
-       "title": "{Topic Name}",
-       "tags": ["{tag1}", "{tag2}", ...],
-       "related": ["{related-id-1}", ...],
-       "profile_domains": ["{domain1}", ...],
-       "level": "brief",
-       "status": "new",
-       "path": "{技|道}/{category}/{topic-slug}.md",
-       "created": "{YYYY-MM-DD}",
-       "summary": "{one-line summary}"
-     }
-     ```
-   - Update `last_updated` to current date
-   - Write the updated JSON back
+## Rate Limiting
 
-## Auto-Detection Signals
-
-High confidence signals (notify only):
-- User explicitly asks "这是什么？" about a concept
-- User copies code without understanding (asks "这行什么意思")
-- User makes errors that indicate fundamental misunderstanding of a framework
-
-Uncertain signals (ask first):
-- User writes working but non-idiomatic code
-- User asks about best practices (may already know basics)
-- Topic is adjacent to user's known expertise (check profile.md)
+- Don't record more than 3 topics per conversation turn
+- If multiple gaps detected in one message, pick the most significant one (lowest profile rating, most central to user's question)
+- Don't record sub-concepts if the parent concept is being recorded (e.g., don't record "softmax" separately if recording "Self-Attention计算流程")
 
 ## Important
 
-- Always read `~/.claude/knowledge/profile.md` before assessing gaps
-- Never record knowledge the user clearly already knows (check profile)
-- Keep entries concise at initial creation — user can request `/kb-deep` later
-- Use Chinese for all entry content by default
+- **NEVER interrupt the main conversation flow** — answer first, notify at the end
+- Always check profile.md before deciding to record
+- Keep entries concise (brief level) — user can `/kb-deep` later
+- Use Chinese for all entry content
+- The background Agent prompt must be fully self-contained
+- If the background Agent fails (permissions etc.), it's acceptable — the notification was already shown, user can `/learn` manually
