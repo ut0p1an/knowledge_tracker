@@ -40,7 +40,7 @@ if ($existingCount -gt 0) {
 }
 
 # Install skills
-Write-Host "[1/3] Installing skills..." -ForegroundColor Green
+Write-Host "[1/4] Installing skills..." -ForegroundColor Green
 if (-not (Test-Path $SkillsDir)) {
     New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
 }
@@ -59,7 +59,7 @@ Write-Host "      Done. ($($skillDirs.Count) skills installed)"
 Write-Host ""
 
 # Install knowledge base template
-Write-Host "[2/3] Setting up knowledge base..." -ForegroundColor Green
+Write-Host "[2/4] Setting up knowledge base..." -ForegroundColor Green
 
 $jiDir = Join-Path $KnowledgeDir ([char]0x6280)  # 技
 $daoDir = Join-Path $KnowledgeDir ([char]0x9053)  # 道
@@ -96,8 +96,49 @@ if (Test-Path $historyPath) {
 Write-Host "      Done."
 Write-Host ""
 
+# Configure permissions
+Write-Host "[3/4] Configuring permissions..." -ForegroundColor Green
+$settingsPath = Join-Path $ClaudeDir "settings.json"
+$requiredRules = @(
+    "Read(~/.claude/knowledge/**)",
+    "Write(~/.claude/knowledge/**)",
+    "Edit(~/.claude/knowledge/**)",
+    "Bash(mkdir:~/.claude/knowledge/*)"
+)
+
+if (Test-Path $settingsPath) {
+    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+
+    if (-not $settings.permissions) {
+        $settings | Add-Member -NotePropertyName "permissions" -NotePropertyValue ([PSCustomObject]@{ allow = @() })
+    }
+    if (-not $settings.permissions.allow) {
+        $settings.permissions | Add-Member -NotePropertyName "allow" -NotePropertyValue @()
+    }
+
+    $existingAllow = @($settings.permissions.allow)
+    $addedCount = 0
+    foreach ($rule in $requiredRules) {
+        if ($existingAllow -notcontains $rule) {
+            $existingAllow += $rule
+            Write-Host "      + $rule"
+            $addedCount++
+        } else {
+            Write-Host "      $rule (already exists)"
+        }
+    }
+    $settings.permissions.allow = $existingAllow
+
+    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
+    Write-Host "      Done. ($addedCount rules added to settings.json)"
+} else {
+    Write-Host "      [WARN] settings.json not found, skipping permissions." -ForegroundColor Yellow
+    Write-Host "      You may need to manually allow access to ~/.claude/knowledge/"
+}
+Write-Host ""
+
 # Verify
-Write-Host "[3/3] Verifying installation..." -ForegroundColor Green
+Write-Host "[4/4] Verifying installation..." -ForegroundColor Green
 $installedCount = 0
 foreach ($skill in $skills) {
     $skillFile = Join-Path $SkillsDir "$skill\SKILL.md"

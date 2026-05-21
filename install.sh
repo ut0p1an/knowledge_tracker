@@ -40,7 +40,7 @@ if [ $EXISTING_SKILLS -gt 0 ]; then
 fi
 
 # Install skills
-echo "[1/3] Installing skills..."
+echo "[1/4] Installing skills..."
 mkdir -p "$SKILLS_DIR"
 
 for skill_dir in "$SCRIPT_DIR"/skills/*/; do
@@ -54,7 +54,7 @@ echo "      Done. ($( ls -d "$SCRIPT_DIR"/skills/*/ | wc -l | tr -d ' ') skills 
 echo ""
 
 # Install knowledge base template
-echo "[2/3] Setting up knowledge base..."
+echo "[2/4] Setting up knowledge base..."
 mkdir -p "$KNOWLEDGE_DIR/技" "$KNOWLEDGE_DIR/道"
 
 if [ -f "$KNOWLEDGE_DIR/INDEX.md" ]; then
@@ -81,8 +81,81 @@ fi
 echo "      Done."
 echo ""
 
+# Configure permissions
+echo "[3/4] Configuring permissions..."
+SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+REQUIRED_RULES=(
+    'Read(~/.claude/knowledge/**)'
+    'Write(~/.claude/knowledge/**)'
+    'Edit(~/.claude/knowledge/**)'
+    'Bash(mkdir:~/.claude/knowledge/*)'
+)
+
+if [ -f "$SETTINGS_FILE" ]; then
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+
+settings_path = sys.argv[1]
+rules = sys.argv[2:]
+
+with open(settings_path, 'r', encoding='utf-8') as f:
+    settings = json.load(f)
+
+if 'permissions' not in settings:
+    settings['permissions'] = {}
+if 'allow' not in settings['permissions']:
+    settings['permissions']['allow'] = []
+
+existing = settings['permissions']['allow']
+added = 0
+for rule in rules:
+    if rule not in existing:
+        existing.append(rule)
+        print(f'      + {rule}')
+        added += 1
+    else:
+        print(f'      {rule} (already exists)')
+
+with open(settings_path, 'w', encoding='utf-8') as f:
+    json.dump(settings, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+
+print(f'      Done. ({added} rules added to settings.json)')
+" "$SETTINGS_FILE" "${REQUIRED_RULES[@]}"
+    elif command -v jq &>/dev/null; then
+        ADDED=0
+        for rule in "${REQUIRED_RULES[@]}"; do
+            HAS_RULE=$(jq --arg r "$rule" '.permissions.allow // [] | map(select(. == $r)) | length' "$SETTINGS_FILE" 2>/dev/null || echo "0")
+            if [ "$HAS_RULE" = "0" ]; then
+                TEMP=$(mktemp)
+                jq --arg r "$rule" '
+                    .permissions //= {} |
+                    .permissions.allow //= [] |
+                    .permissions.allow += [$r]
+                ' "$SETTINGS_FILE" > "$TEMP" && mv "$TEMP" "$SETTINGS_FILE"
+                echo "      + $rule"
+                ADDED=$((ADDED + 1))
+            else
+                echo "      $rule (already exists)"
+            fi
+        done
+        echo "      Done. ($ADDED rules added to settings.json)"
+    else
+        echo "      [WARN] Neither python3 nor jq found." >&2
+        echo "      Please manually add these permissions to $SETTINGS_FILE:"
+        for rule in "${REQUIRED_RULES[@]}"; do
+            echo "        - $rule"
+        done
+    fi
+else
+    echo "      [WARN] settings.json not found, skipping permissions."
+    echo "      You may need to manually allow access to ~/.claude/knowledge/"
+fi
+echo ""
+
 # Summary
-echo "[3/3] Verifying installation..."
+echo "[4/4] Verifying installation..."
 INSTALLED_COUNT=0
 for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
     if [ -f "$SKILLS_DIR/$skill/SKILL.md" ]; then
