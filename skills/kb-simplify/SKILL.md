@@ -26,9 +26,15 @@ If a direction is provided:
 - Tailor the "怎么用" / "关联" sections to emphasize the direction
 - Still keep the concise format, but filter through the direction lens
 
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
 ## Workflow
 
-1. Find and read the target entry file
+1. Find the entry via `{KB_ROOT}/search-index.json` (match by `id`, then `title` partial match) and read the file using its `path` field. Fallback: scan `{KB_ROOT}/*/` for matching filename.
 2. Parse direction from arguments (if any)
 3. Rewrite it based on type, focusing on direction when provided:
 

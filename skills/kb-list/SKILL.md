@@ -8,13 +8,19 @@ argument-hint: [category] [--tag <tag>]
 
 ## Overview
 
-Display the knowledge base index. Shows categories and entry titles without loading full content.
+Display the knowledge base index. Shows entries grouped by category with type tags, summaries, and links.
+
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
 
 ## Workflow
 
-1. Try to read `~/.claude/knowledge/search-index.json`
+1. Try to read `{KB_ROOT}/search-index.json`
    - If it exists and has entries: use the index as data source
-   - If it doesn't exist or is empty: fall back to reading `~/.claude/knowledge/INDEX.md`
+   - If it doesn't exist or is empty: fall back to reading `{KB_ROOT}/INDEX.md`
 2. Parse `$ARGUMENTS` for optional filters
 3. Display the categorized list to user
 
@@ -28,44 +34,41 @@ Display the knowledge base index. Shows categories and entry titles without load
 
 ### No arguments — show full index
 
-When using search-index.json, group entries by `type` then `category`:
+When using search-index.json, group entries by `category` (sorted alphabetically). Each entry shows its **ID**, **type tag** [技/道], **summary**, and **links**:
 
 ```
 === 知识库目录 ===
 
-📂 技（实践技能）
-├── python (3 条)
-│   ├── decorators — 用 @语法 包装函数，添加额外行为
-│   ├── asyncio — Python 异步编程核心库
-│   └── context-managers — with 语句资源管理
-├── web (2 条)
-│   ├── cors — 跨域资源共享机制
-│   └── jwt-auth — JSON Web Token 认证
-└── devops (1 条)
-    └── docker-compose — 多容器编排工具
+## distributed-systems (2 条)
+• cap-theorem [道] — 分布式系统一致性/可用性/分区容忍三选二  (→ consistency-models)
+• consistency-models [道] — 分布式一致性模型对比  (→ cap-theorem)
 
-📂 道（原理理论）
-├── design-patterns (2 条)
-│   ├── observer-pattern — 观察者模式，事件驱动解耦
-│   └── strategy-pattern — 策略模式，运行时切换算法
-└── distributed-systems (1 条)
-    └── cap-theorem — 分布式系统一致性/可用性/分区容忍三选二
+## python (3 条)
+• asyncio [技] — Python 异步编程核心库
+• context-managers [技] — with 语句资源管理  (→ decorators)
+• decorators [技] — 用 @语法 包装函数  (→ metaprogramming, context-managers)
 
-总计: 9 条  |  技: 6  |  道: 3
-状态: new: 5  reviewed: 4
+## web (2 条)
+• cors [技] — 跨域资源共享机制
+• jwt-auth [技] — JSON Web Token 认证
+
+总计: 7 条  |  技: 5  |  道: 2
+状态: new: 4  reviewed: 3
 ```
 
-Note: the summary after "—" comes from the index's `summary` field. If falling back to INDEX.md, omit summaries.
+Entry format: `• {id} [{type}] — {summary}  (→ {linked-ids})` where links are only shown if `related` is non-empty.
 
-### With category argument — show catalog detail
+Note: the summary comes from the index's `summary` field. If falling back to INDEX.md, omit summaries and links.
 
-`/kb-list python` → Filter index entries where `category == "python"`, display with summaries and tags.
+### With category argument — show category detail
+
+`/kb-list python` → Filter index entries where `category == "python"`, display with tags and summaries.
 
 ```
-📂 python (3 条)
-├── decorators [python, 函数, 元编程] — 用 @语法 包装函数
-├── asyncio [python, 异步, 并发] — Python 异步编程核心库
-└── context-managers [python, 资源管理] — with 语句资源管理
+## python (3 条)
+• asyncio [技] [python, 异步, 并发] — Python 异步编程核心库
+• context-managers [技] [python, 资源管理] — with 语句资源管理  (→ decorators)
+• decorators [技] [python, 函数, 元编程] — 用 @语法 包装函数  (→ metaprogramming, context-managers)
 ```
 
 ### With --tag argument — filter by tag
@@ -74,8 +77,8 @@ Note: the summary after "—" comes from the index's `summary` field. If falling
 
 ```
 === 标签「元编程」相关条目 ===
-├── [技/python] decorators — 用 @语法 包装函数
-└── [道/design-patterns] metaclass — 元类编程原理
+• decorators [技/python] — 用 @语法 包装函数  (→ metaprogramming, context-managers)
+• metaclass [道/python] — 元类编程原理  (→ decorators)
 ```
 
 ## If Knowledge Base is Empty
@@ -86,9 +89,10 @@ Output:
 ## Available Actions After Listing
 
 Remind the user of available commands:
-- `/kb-detail <entry>` — 查看具体条目
-- `/kb-delete <entry>` — 删除条目
-- `/kb-simplify <entry> [方向]` — 精简讲解（可指定方向）
-- `/kb-deep <entry> [方向]` — 深入讲解（可指定方向）
+- `/kb-detail <id>` — 查看具体条目
+- `/kb-delete <id>` — 删除条目
+- `/kb-simplify <id> [方向]` — 精简讲解（可指定方向）
+- `/kb-deep <id> [方向]` — 深入讲解（可指定方向）
+- `/kb-link <id-A> <id-B>` — 关联两个条目
 - `/kb-list --tag <tag>` — 按标签筛选
 - `/kb-assess` — 刷新知识画像

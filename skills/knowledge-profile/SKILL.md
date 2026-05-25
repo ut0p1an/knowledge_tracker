@@ -26,7 +26,7 @@ Profile is at `{KB_ROOT}/profile.md`.
 
 ## Core Rules
 
-1. **Always read profile before judging gaps**: Load `~/.claude/knowledge/profile.md` to understand what the user already knows.
+1. **Always read profile before judging gaps**: Load `{KB_ROOT}/profile.md` to understand what the user already knows.
 
 2. **Update profile incrementally**: When you observe the user demonstrating knowledge in a domain:
    - Upgrade their rating if they show deeper understanding than recorded

@@ -8,18 +8,25 @@ argument-hint: <entry-name>
 
 ## Overview
 
-Load and display the full content of a specific knowledge entry.
+Load and display the full content of a specific knowledge entry, including its linked entries.
+
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
 
 ## Workflow
 
 1. Parse `$ARGUMENTS` as entry name (supports partial match)
-2. Try to search in `~/.claude/knowledge/search-index.json` first:
+2. Try to search in `{KB_ROOT}/search-index.json` first:
    - Match against `id` (exact), then `title` (partial), then `tags` (contains), then `summary` (keyword)
    - If found, use the `path` field to read the entry file directly
 3. If search-index.json doesn't exist or no match found, fall back to directory search:
-   - Search in `~/.claude/knowledge/技/` and `~/.claude/knowledge/道/` for matching file
+   - Search in all subdirectories of `{KB_ROOT}/` for matching `.md` files (skip INDEX.md, profile.md, and non-entry files)
 4. Read and display the full entry content
-5. If multiple matches, show list with summaries (from index if available) and ask user to choose
+5. Display linked entries section
+6. If multiple matches, show list with summaries (from index if available) and ask user to choose
 
 ## Search Priority (when using index)
 
@@ -30,9 +37,8 @@ Load and display the full content of a specific knowledge entry.
 
 ## Fallback Search Logic (without index)
 
-1. Exact filename match (without .md extension)
-2. Partial match in filename
-3. Search in `_catalog.md` descriptions for keyword match
+1. Exact filename match (without .md extension) in `{KB_ROOT}/*/`
+2. Partial match in filename across all category directories
 
 ## If Not Found
 
@@ -40,12 +46,31 @@ Load and display the full content of a specific knowledge entry.
 
 ## Display
 
-Show the full markdown content of the entry file as-is. Additionally check if `{entry}.detailed.md` or `{entry}.simplified.md` exist in the same directory — if so, note available versions.
+Show the full markdown content of the entry file as-is.
+
+### Linked Entries Section
+
+After the main content, if the entry has `related` entries in search-index.json (or `links` in frontmatter), display:
+
+```
+🔗 关联条目:
+• {linked-id} [{type}/{category}] — {summary}
+• {linked-id} [{type}/{category}] — {summary}
+```
+
+Read linked entries' metadata from search-index.json to show type, category, and summary.
+
+### Version Check
+
+Additionally check if `{entry}.detailed.md` or `{entry}.simplified.md` exist in the same directory — if so, note available versions.
+
+If detailed/simplified versions exist, show:
+> 📂 此条目还有: [detailed 版本] [simplified 版本] — 使用 `/kb-detail <entry> --detailed` 或 `--simplified` 查看
+
+### Actions Reminder
 
 After display, remind:
 - `/kb-simplify <entry> [方向]` — 精简版本（可指定方向）
 - `/kb-deep <entry> [方向]` — 深入讲解（可指定方向）
 - `/kb-delete <entry>` — 删除此条目
-
-If detailed/simplified versions exist, also show:
-> 📂 此条目还有: [detailed 版本] [simplified 版本] — 使用 `/kb-detail <entry> --detailed` 或 `--simplified` 查看
+- `/kb-link <entry> <other>` — 关联其他条目

@@ -2,13 +2,14 @@
 
 [中文版](README.md)
 
-A knowledge gap tracking system for Claude Code. Automatically identifies and collects unfamiliar knowledge points during vibe coding, builds a personal knowledge base with categorized management and on-demand learning.
+A knowledge gap tracking system for Claude Code. Automatically identifies and collects unfamiliar knowledge points during vibe coding, builds a personal knowledge base with categorized management, knowledge linking, and on-demand learning.
 
 ## Features
 
 - **Auto Collection**: Claude proactively identifies your knowledge gaps during coding and records them (opt-in, requires CLAUDE.md configuration)
 - **Manual Tagging**: Use `/learn <topic>` to tag any knowledge point of interest at any time
-- **Categorized Management**: Knowledge is divided into two categories: "术" (Practical Skills) and "道" (Principles & Theory)
+- **Knowledge Linking**: Bidirectional links between entries build a knowledge graph (auto-suggested on creation + `/kb-link` for manual linking)
+- **Categorized Management**: Entries organized by domain (category), with type (技/道) as a metadata tag
 - **On-demand Learning**: Switch between simplified and in-depth explanations, original entries remain untouched, with optional focus direction
 - **Structured Index**: Automatically maintains search-index.json for tag-based search and quick retrieval
 - **Index Recovery**: Use `/kb-rebuild-index` to rebuild indexes from filesystem, fixing inconsistencies
@@ -19,14 +20,15 @@ A knowledge gap tracking system for Claude Code. Automatically identifies and co
 
 | Command | Description |
 | --- | --- |
-| `/learn <topic>` | Manually tag a knowledge point |
-| `/kb-list [category] [--tag <tag>]` | View knowledge base catalog (supports tag filtering) |
-| `/kb-detail <entry>` | View specific entry content |
-| `/kb-delete <entry>` | Delete an entry |
+| `/learn <topic>` | Manually tag a knowledge point (auto-suggests links) |
+| `/kb-list [category] [--tag <tag>]` | View knowledge base catalog (grouped by domain, supports tag filtering) |
+| `/kb-detail <entry>` | View specific entry content and linked entries |
+| `/kb-delete <entry>` | Delete an entry (auto-cleans bidirectional links) |
 | `/kb-simplify <entry> [direction]` | Simplified explanation (with optional focus direction) |
 | `/kb-deep <entry> [direction]` | In-depth explanation (with optional focus direction) |
+| `/kb-link <entry-A> <entry-B>` | Manually link two entries (with relevance validation) |
 | `/kb-assess` | Self-assessment questionnaire (initialize/refresh knowledge profile, supports batch testing) |
-| `/kb-rebuild-index` | Rebuild index from filesystem (fix inconsistencies) |
+| `/kb-rebuild-index` | Rebuild index from filesystem (fix inconsistencies, validate bidirectional links) |
 
 Additionally, `knowledge-collector` (requires opt-in config) and `knowledge-profile` are automatically triggered by Claude during coding and do not need to be invoked manually.
 
@@ -65,8 +67,8 @@ If the scripts don't work for you, just copy manually:
 # Copy skills
 cp -r skills/* ~/.claude/skills/
 
-# Create knowledge base directories and copy templates
-mkdir -p ~/.claude/knowledge/技 ~/.claude/knowledge/道
+# Create knowledge base directory and copy templates
+mkdir -p ~/.claude/knowledge
 cp knowledge-template/INDEX.md ~/.claude/knowledge/
 cp knowledge-template/profile.md ~/.claude/knowledge/
 cp knowledge-template/assess-history.json ~/.claude/knowledge/
@@ -100,21 +102,33 @@ You can also manually tag at any time:
 /learn CAP theorem
 ```
 
+When creating entries, the system automatically scans existing entries and suggests possible links.
+
 ### 3. View and Manage Knowledge Base
 
 ```
-/kb-list                    # View full catalog (with summaries)
+/kb-list                    # View full catalog (grouped by domain, with summaries and links)
 /kb-list python             # View python category (with tags and summaries)
 /kb-list --tag metaprogramming  # Filter entries by tag
-/kb-detail asyncio          # View specific entry
+/kb-detail asyncio          # View specific entry and linked entries
 /kb-simplify asyncio        # Simplified version
 /kb-simplify asyncio syntax only           # Simplified, focused on syntax
 /kb-deep asyncio            # In-depth version
 /kb-deep asyncio multithreading interop    # In-depth, focused on multithreading
-/kb-delete asyncio          # Delete
+/kb-delete asyncio          # Delete (auto-cleans bidirectional links)
 ```
 
-### 4. Refresh Knowledge Profile
+### 4. Manage Knowledge Links
+
+```
+/kb-link decorators metaprogramming    # Manually link two entries
+```
+
+The system reads both entries' content to judge relevance:
+- Clearly related → creates bidirectional link directly
+- Questionable relevance → warns and asks for confirmation
+
+### 5. Refresh Knowledge Profile
 
 As your learning progresses, refresh your profile periodically:
 
@@ -126,7 +140,7 @@ The system avoids repeating previously asked questions and only generates new as
 
 ## Knowledge Entry Format
 
-### "术" Entries (Practical Skills)
+### Skill Entries (技)
 
 ```markdown
 ---
@@ -135,6 +149,7 @@ category: python
 created: 2026-05-19
 level: brief
 status: new | reviewed
+links: [metaprogramming, closures]
 ---
 # Topic Name
 
@@ -146,7 +161,7 @@ status: new | reviewed
 
 In-depth (`/kb-deep`) and simplified (`/kb-simplify`) versions are saved as separate files and do not overwrite the original entry.
 
-### "道" Entries (Principles & Theory)
+### Principle Entries (道)
 
 ```markdown
 ---
@@ -155,6 +170,7 @@ category: distributed-systems
 created: 2026-05-19
 level: brief
 status: new | reviewed
+links: [cap-theorem]
 ---
 # Topic Name
 
@@ -198,6 +214,7 @@ BACKGROUND_EXPLAIN: true     # true = generate detailed content in background
 │   ├── kb-delete/SKILL.md
 │   ├── kb-simplify/SKILL.md
 │   ├── kb-deep/SKILL.md
+│   ├── kb-link/SKILL.md              # /kb-link manual entry linking
 │   ├── kb-assess/SKILL.md
 │   ├── kb-rebuild-index/SKILL.md     # /kb-rebuild-index rebuild index
 │   └── knowledge-profile/SKILL.md
@@ -207,16 +224,10 @@ BACKGROUND_EXPLAIN: true     # true = generate detailed content in background
     ├── search-index.json            # Structured index (for machine retrieval)
     ├── profile.md                   # Knowledge profile
     ├── assess-history.json          # Assessment history (avoid duplicates)
-    ├── 技/                          # Practical skills
-    │   └── {category}/
-    │       ├── {topic}.md            # Original entry (brief)
-    │       ├── {topic}.detailed.md   # In-depth version (/kb-deep)
-    │       └── {topic}.simplified.md # Simplified version (/kb-simplify)
-    └── 道/                          # Principles & theory
-        └── {category}/
-            ├── {topic}.md
-            ├── {topic}.detailed.md
-            └── {topic}.simplified.md
+    └── {category}/                  # Entries organized by domain
+        ├── {topic}.md               # Original entry (brief)
+        ├── {topic}.detailed.md      # In-depth version (/kb-deep)
+        └── {topic}.simplified.md    # Simplified version (/kb-simplify)
 ```
 
 ### search-index.json Structure
@@ -234,11 +245,13 @@ A structured index automatically maintained when entries are added or removed, u
       "category": "python",
       "title": "Python Decorators",
       "tags": ["python", "functions", "metaprogramming"],
-      "related": ["context-managers"],
+      "related": ["metaprogramming", "context-managers"],
       "profile_domains": ["python"],
       "level": "brief",
+      "has_detailed": false,
+      "has_simplified": false,
       "status": "new",
-      "path": "技/python/decorators.md",
+      "path": "python/decorators.md",
       "created": "2026-05-20",
       "summary": "Wrap functions with @syntax to add extra behavior"
     }
@@ -250,10 +263,10 @@ Field descriptions:
 | Field | Description |
 | --- | --- |
 | `id` | Entry identifier (filename without .md) |
-| `type` | "技" (skill) or "道" (principle) |
-| `category` | Subcategory directory name |
+| `type` | "技" (skill) or "道" (principle), from frontmatter |
+| `category` | Domain directory name |
 | `tags` | Keywords for search and filtering |
-| `related` | List of related entry IDs |
+| `related` | List of linked entry IDs (bidirectional, synced with frontmatter `links`) |
 | `profile_domains` | Corresponding domains in the knowledge profile |
 | `level` | Original entry detail level: brief (default) |
 | `has_detailed` | Whether a .detailed.md file exists |
@@ -273,6 +286,7 @@ rm -rf ~/.claude/skills/kb-detail
 rm -rf ~/.claude/skills/kb-delete
 rm -rf ~/.claude/skills/kb-simplify
 rm -rf ~/.claude/skills/kb-deep
+rm -rf ~/.claude/skills/kb-link
 rm -rf ~/.claude/skills/kb-assess
 rm -rf ~/.claude/skills/kb-rebuild-index
 rm -rf ~/.claude/skills/knowledge-profile

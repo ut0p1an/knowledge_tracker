@@ -21,8 +21,9 @@ digraph learn {
     "Classify" -> "技 or 道?";
     "技 or 道?" -> "Ambiguous?" [label="unclear"];
     "Ambiguous?" -> "Ask user to clarify";
-    "Ask user to clarify" -> "Output confirmation";
-    "技 or 道?" -> "Output confirmation" [label="clear"];
+    "Ask user to clarify" -> "Auto-suggest links";
+    "技 or 道?" -> "Auto-suggest links" [label="clear"];
+    "Auto-suggest links" -> "Output confirmation";
     "Output confirmation" -> "Background Agent: init entry";
 }
 ```
@@ -36,14 +37,21 @@ digraph learn {
 ## Steps (Synchronous — main flow)
 
 1. **Parse topic** from `$ARGUMENTS`
-2. **Read profile** at `~/.claude/knowledge/profile.md` to check existing knowledge level
-3. **Check duplicates** in `~/.claude/knowledge/search-index.json` — if an entry with matching `id` or similar `title` already exists, notify and ask if user wants to update it instead
+2. **Read profile** at `{KB_ROOT}/profile.md` to check existing knowledge level
+3. **Check duplicates** in `{KB_ROOT}/search-index.json` — if an entry with matching `id` or similar `title` already exists, notify and ask if user wants to update it instead
 4. **Classify** as "技" (practical skill) or "道" (principle/theory):
    - If clearly practical (framework API, tool usage, coding pattern) → 技
    - If clearly theoretical (design pattern, algorithm theory, architecture principle) → 道
    - If ambiguous → ask user via AskUserQuestion: "「{topic}」属于哪个类别？" with options "技（实践技能）" and "道（原理理论）"
-5. **Output confirmation** immediately (see Output section)
-6. **Launch background Agent** to generate entry content and update all files (see Background Entry Initialization section)
+5. **Auto-suggest links** — scan search-index.json for related existing entries:
+   - Find entries with overlapping `category`, `tags`, or keyword similarity to the new topic
+   - If 1-3 candidates found, use AskUserQuestion (multiSelect: true):
+     "以下已有条目可能与「{topic}」相关，是否建立关联？"
+     Options: top 2-3 candidates, each showing `{id} [{type}] — {summary}`
+   - If no candidates or user selects none: `links` will be empty
+   - Store user-confirmed entry IDs as the `links` list
+6. **Output confirmation** immediately (see Output section)
+7. **Launch background Agent** to generate entry content and update all files (see Background Entry Initialization section)
 
 ## Classification Rules
 
@@ -61,8 +69,11 @@ digraph learn {
 
 ## Output
 
-After classification is determined, **immediately** output (do NOT wait for the background Agent):
-> 已记录「{topic}」到知识库 [{技|道}/{category}]，正在后台生成内容...
+After classification and link suggestion are determined, **immediately** output (do NOT wait for the background Agent):
+> 已记录「{topic}」到知识库 [{category}]（{技|道}），正在后台生成内容...
+
+If links were confirmed, also show:
+> 🔗 关联: {linked-entry-1}, {linked-entry-2}
 
 Then remind available follow-up commands:
 - `/kb-detail {entry}` — 查看条目内容
@@ -94,8 +105,9 @@ Build the prompt by filling in the following template with the values determined
 - 分类: {category}
 - 文件ID (slug): {topic-slug}
 - 知识库根目录: {resolved KB_ROOT absolute path}
-- 条目文件路径: {KB_ROOT}/{技|道}/{category}/{topic-slug}.md
+- 条目文件路径: {KB_ROOT}/{category}/{topic-slug}.md
 - 用户画像路径: {KB_ROOT}/profile.md
+- 关联条目: {confirmed-link-ids, 逗号分隔, 如无则为"无"}
 
 ## 步骤
 
@@ -103,7 +115,7 @@ Build the prompt by filling in the following template with the values determined
 读取 `{KB_ROOT}/profile.md`，了解用户背景和现有知识水平，以便生成贴合用户水平的内容。
 
 ### 2. 创建目录（如需要）
-确保 `{KB_ROOT}/{技|道}/{category}/` 目录存在。
+确保 `{KB_ROOT}/{category}/` 目录存在。
 
 ### 3. 生成条目文件
 根据类型生成条目内容并写入文件。
@@ -111,17 +123,22 @@ Build the prompt by filling in the following template with the values determined
 {INSERT_TEMPLATE_FOR_TYPE — see "Entry Templates" below}
 
 ### 4. 更新 INDEX.md
-读取 `{KB_ROOT}/INDEX.md`，在对应的「技」或「道」章节下添加条目链接。更新底部统计数字。
+读取 `{KB_ROOT}/INDEX.md`，在对应的 category 章节下添加条目链接（如该 category 章节不存在则新建）。更新底部统计数字。
 
 ### 5. 更新 search-index.json
 读取 `{KB_ROOT}/search-index.json`，向 entries 数组追加：
 {INSERT_SEARCH_INDEX_ENTRY — see "Search Index Entry" below}
 更新 `last_updated` 为当前日期。
 
-### 6. 更新 profile.md
+### 6. 更新关联条目（如有关联）
+如果有关联条目，对每个关联条目执行：
+- 读取关联条目的 .md 文件，在 frontmatter 的 `links` 数组中添加本条目的 ID
+- 在 search-index.json 中，找到关联条目的 entry，在其 `related` 数组中添加本条目的 ID
+
+### 7. 更新 profile.md
 读取 `{KB_ROOT}/profile.md`，在相关领域调整评级或在「待学习」区域添加新条目。
 
-### 7. 发送通知
+### 8. 发送通知
 使用 PushNotification 工具通知用户：「{Topic Name}」知识条目已生成完成
 ```
 
@@ -138,6 +155,7 @@ category: {category}
 created: {YYYY-MM-DD}
 level: brief
 status: new
+links: [{confirmed-link-ids}]
 source-project: {current project name if relevant}
 ---
 # {Topic Name}
@@ -168,6 +186,7 @@ category: {category}
 created: {YYYY-MM-DD}
 level: brief
 status: new
+links: [{confirmed-link-ids}]
 source-project: {current project name if relevant}
 ---
 # {Topic Name}
@@ -198,23 +217,23 @@ Include this in the Agent prompt for the search-index.json update:
   "category": "{category}",
   "title": "{Topic Name}",
   "tags": ["{tag1}", "{tag2}", ...],
-  "related": ["{related-id-1}", ...],
+  "related": ["{confirmed-link-ids}", ...],
   "profile_domains": ["{domain1}", ...],
   "level": "brief",
   "status": "new",
-  "path": "{技|道}/{category}/{topic-slug}.md",
+  "path": "{category}/{topic-slug}.md",
   "created": "{YYYY-MM-DD}",
   "summary": "{one-line summary}"
 }
 ```
 
-Tags, related entries, profile_domains, and summary should be determined by the Agent based on the generated content and existing search-index.json entries.
+Tags, profile_domains, and summary should be determined by the Agent based on the generated content and existing search-index.json entries. The `related` field should include the confirmed link IDs from step 5.
 
 ## Important
 
-- Always read `~/.claude/knowledge/profile.md` before recording
+- Always read `{KB_ROOT}/profile.md` before recording
 - Check for duplicate entries in search-index.json before creating
 - Keep entries concise at initial creation — user can request `/kb-deep` later
 - Use Chinese for all entry content by default
-- The synchronous flow must complete BEFORE the Agent starts — the Agent needs the classification result
+- The synchronous flow must complete BEFORE the Agent starts — the Agent needs the classification and link results
 - The Agent prompt must be **self-contained** — include all templates, paths, and rules directly in the prompt since the Agent cannot access this skill file

@@ -21,7 +21,7 @@ if (-not (Test-Path $ClaudeDir)) {
 }
 
 # Check for existing skills
-$skills = @("knowledge-collector", "learn", "kb-list", "kb-detail", "kb-delete", "kb-simplify", "kb-deep", "kb-assess", "knowledge-profile")
+$skills = @("knowledge-collector", "learn", "kb-list", "kb-detail", "kb-delete", "kb-simplify", "kb-deep", "kb-assess", "kb-link", "kb-rebuild-index", "knowledge-profile")
 $existingCount = 0
 foreach ($skill in $skills) {
     if (Test-Path (Join-Path $SkillsDir $skill)) {
@@ -61,11 +61,9 @@ Write-Host ""
 # Install knowledge base template
 Write-Host "[2/4] Setting up knowledge base..." -ForegroundColor Green
 
-$jiDir = Join-Path $KnowledgeDir ([char]0x6280)  # 技
-$daoDir = Join-Path $KnowledgeDir ([char]0x9053)  # 道
-
-if (-not (Test-Path $jiDir)) { New-Item -ItemType Directory -Path $jiDir -Force | Out-Null }
-if (-not (Test-Path $daoDir)) { New-Item -ItemType Directory -Path $daoDir -Force | Out-Null }
+if (-not (Test-Path $KnowledgeDir)) {
+    New-Item -ItemType Directory -Path $KnowledgeDir -Force | Out-Null
+}
 
 $templateDir = Join-Path $ScriptDir "knowledge-template"
 
@@ -91,6 +89,14 @@ if (Test-Path $historyPath) {
 } else {
     Copy-Item (Join-Path $templateDir "assess-history.json") $historyPath
     Write-Host "      + assess-history.json"
+}
+
+$searchIndexPath = Join-Path $KnowledgeDir "search-index.json"
+if (Test-Path $searchIndexPath) {
+    Write-Host "      search-index.json already exists, skipping"
+} else {
+    Copy-Item (Join-Path $templateDir "search-index.json") $searchIndexPath
+    Write-Host "      + search-index.json"
 }
 
 Write-Host "      Done."
@@ -154,20 +160,25 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "  Installation complete!" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Skills installed: $installedCount/9"
+Write-Host "  Skills installed: $installedCount/11"
 Write-Host "  Knowledge base:   $KnowledgeDir"
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor Green
 Write-Host "  1. Restart Claude Code to load new skills"
 Write-Host "  2. Run /kb-assess to initialize your knowledge profile"
-Write-Host "  3. Start coding - knowledge collection is automatic!"
+Write-Host "  3. Start coding - use /learn <topic> to collect knowledge!"
 Write-Host ""
 Write-Host "  Commands:"
-Write-Host "    /learn <topic>       - Mark a knowledge point"
-Write-Host "    /kb-list             - View knowledge catalog"
-Write-Host "    /kb-detail <entry>   - View entry details"
-Write-Host "    /kb-simplify <entry> - Simplified explanation"
-Write-Host "    /kb-deep <entry>     - Deep dive explanation"
-Write-Host "    /kb-delete <entry>   - Delete an entry"
-Write-Host "    /kb-assess           - Run self-assessment"
+Write-Host "    /learn <topic>        - Mark a knowledge point"
+Write-Host "    /kb-list              - View knowledge catalog"
+Write-Host "    /kb-detail <entry>    - View entry details"
+Write-Host "    /kb-simplify <entry>  - Simplified explanation"
+Write-Host "    /kb-deep <entry>      - Deep dive explanation"
+Write-Host "    /kb-delete <entry>    - Delete an entry"
+Write-Host "    /kb-link <A> <B>      - Link two entries"
+Write-Host "    /kb-rebuild-index     - Rebuild index from files"
+Write-Host "    /kb-assess            - Run self-assessment"
+Write-Host ""
+Write-Host "  Note: If upgrading from a previous version with 技/道 directories," -ForegroundColor Yellow
+Write-Host "  run: .\migrate.ps1" -ForegroundColor Yellow
 Write-Host ""

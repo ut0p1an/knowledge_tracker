@@ -87,10 +87,11 @@ digraph collector {
 1. **Detect** the knowledge gap from user's message
 2. **Check** profile.md and search-index.json (quick read, inline)
 3. **Classify** as 技 or 道
-4. **Output one notification line** (appended naturally to your main response):
-   > 📝 已记录「{topic}」到知识库 [{技|道}/{category}]
-5. **Continue answering the user's actual question** as normal
-6. **After your main response is complete**, launch a background Agent to generate the entry
+4. **Identify related entries** — scan search-index.json for entries with overlapping `category`, `tags`, or keyword relevance to the new topic (pick top 2-3 related entries, auto-decide without prompting user)
+5. **Output one notification line** (appended naturally to your main response):
+   > 📝 已记录「{topic}」到知识库 [{category}]（{技|道}）
+6. **Continue answering the user's actual question** as normal
+7. **After your main response is complete**, launch a background Agent to generate the entry
 
 The notification line should be placed at the END of your response, after you've fully answered the user's question. It should feel like a footnote, not an interruption.
 
@@ -112,11 +113,12 @@ The notification line should be placed at the END of your response, after you've
 
 After outputting your main response + notification, launch a background Agent (`run_in_background: true`) with a self-contained prompt to:
 
-1. Create the entry file at `{KB_ROOT}/{技|道}/{category}/{topic-slug}.md`
+1. Create the entry file at `{KB_ROOT}/{category}/{topic-slug}.md`
 2. Update `INDEX.md`
 3. Update `search-index.json`
-4. Optionally update `profile.md`
-5. Send PushNotification when done
+4. Update linked entries (add reverse links)
+5. Optionally update `profile.md`
+6. Send PushNotification when done
 
 ### Path Resolution
 
@@ -137,25 +139,31 @@ Detect the platform and use the appropriate path. In the Agent prompt, provide t
 - 分类: {category}
 - 文件ID (slug): {topic-slug}
 - 知识库根目录: {resolved KB_ROOT absolute path}
-- 条目文件路径: {KB_ROOT}/{技|道}/{category}/{topic-slug}.md
+- 条目文件路径: {KB_ROOT}/{category}/{topic-slug}.md
 - 用户画像路径: {KB_ROOT}/profile.md
 - 用户背景摘要: {从profile中提取的相关信息}
+- 关联条目: {auto-detected related entry IDs, 逗号分隔, 如无则为"无"}
 
 ## 步骤
 
 ### 1. 创建目录（如需要）
-确保 `{KB_ROOT}/{技|道}/{category}/` 目录存在。
+确保 `{KB_ROOT}/{category}/` 目录存在。
 
 ### 2. 生成条目文件
 {根据类型插入对应模板 — 见下方}
 
 ### 3. 更新 INDEX.md
-读取 `{KB_ROOT}/INDEX.md`，在对应章节下添加条目链接，更新统计数字。
+读取 `{KB_ROOT}/INDEX.md`，在对应的 category 章节下添加条目链接（如该 category 章节不存在则新建），更新统计数字。
 
 ### 4. 更新 search-index.json
 读取 `{KB_ROOT}/search-index.json`，追加条目，更新 last_updated。
 
-### 5. 发送通知
+### 5. 更新关联条目（如有关联）
+如果有关联条目，对每个关联条目执行：
+- 读取关联条目的 .md 文件，在 frontmatter 的 `links` 数组中添加本条目的 ID
+- 在 search-index.json 中，找到关联条目的 entry，在其 `related` 数组中添加本条目的 ID
+
+### 6. 发送通知
 使用 PushNotification 通知用户：「{Topic Name}」知识条目已生成完成
 ```
 
@@ -170,6 +178,7 @@ category: {category}
 created: {YYYY-MM-DD}
 level: brief
 status: new
+links: [{related-entry-ids}]
 source-project: {current project name if relevant}
 ---
 # {Topic Name}
@@ -198,6 +207,7 @@ category: {category}
 created: {YYYY-MM-DD}
 level: brief
 status: new
+links: [{related-entry-ids}]
 source-project: {current project name if relevant}
 ---
 # {Topic Name}
@@ -226,11 +236,11 @@ source-project: {current project name if relevant}
   "category": "{category}",
   "title": "{Topic Name}",
   "tags": ["{tag1}", "{tag2}", ...],
-  "related": ["{related-id-1}", ...],
+  "related": ["{related-entry-ids}", ...],
   "profile_domains": ["{domain1}", ...],
   "level": "brief",
   "status": "new",
-  "path": "{技|道}/{category}/{topic-slug}.md",
+  "path": "{category}/{topic-slug}.md",
   "created": "{YYYY-MM-DD}",
   "summary": "{one-line summary}"
 }

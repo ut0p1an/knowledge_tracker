@@ -26,9 +26,15 @@ If a direction is provided, adjust the expanded content to emphasize that aspect
 - Add a dedicated section addressing the direction if it doesn't fit existing sections
 - Still include the full structure, but treat the direction as the primary lens
 
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
 ## Workflow
 
-1. Find and read the target entry file
+1. Find the entry via `{KB_ROOT}/search-index.json` (match by `id`, then `title` partial match) and read the file using its `path` field. Fallback: scan `{KB_ROOT}/*/` for matching filename.
 2. Parse direction from arguments (if any)
 3. Expand it based on type, focusing on direction when provided:
 

@@ -230,7 +230,7 @@ After scoring, show the user a brief result summary:
 
 ## Question History
 
-Save all asked questions to `~/.claude/knowledge/assess-history.json`:
+Save all asked questions to `{KB_ROOT}/assess-history.json`:
 
 ```json
 {
@@ -278,7 +278,7 @@ On refresh: load `asked_questions` list, generate NEW questions that haven't bee
 
 ## Profile Generation
 
-After assessment (with or without quiz), update `~/.claude/knowledge/profile.md`:
+After assessment (with or without quiz), update `{KB_ROOT}/profile.md`:
 
 ```markdown
 # 用户知识画像

@@ -23,7 +23,7 @@ fi
 
 # Check for existing skills and warn
 EXISTING_SKILLS=0
-for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
+for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess kb-link kb-rebuild-index knowledge-profile; do
     if [ -d "$SKILLS_DIR/$skill" ]; then
         EXISTING_SKILLS=$((EXISTING_SKILLS + 1))
     fi
@@ -55,7 +55,7 @@ echo ""
 
 # Install knowledge base template
 echo "[2/4] Setting up knowledge base..."
-mkdir -p "$KNOWLEDGE_DIR/技" "$KNOWLEDGE_DIR/道"
+mkdir -p "$KNOWLEDGE_DIR"
 
 if [ -f "$KNOWLEDGE_DIR/INDEX.md" ]; then
     echo "      INDEX.md already exists, skipping (won't overwrite your data)"
@@ -76,6 +76,13 @@ if [ -f "$KNOWLEDGE_DIR/assess-history.json" ]; then
 else
     cp "$SCRIPT_DIR/knowledge-template/assess-history.json" "$KNOWLEDGE_DIR/assess-history.json"
     echo "      + assess-history.json"
+fi
+
+if [ -f "$KNOWLEDGE_DIR/search-index.json" ]; then
+    echo "      search-index.json already exists, skipping"
+else
+    cp "$SCRIPT_DIR/knowledge-template/search-index.json" "$KNOWLEDGE_DIR/search-index.json"
+    echo "      + search-index.json"
 fi
 
 echo "      Done."
@@ -157,7 +164,7 @@ echo ""
 # Summary
 echo "[4/4] Verifying installation..."
 INSTALLED_COUNT=0
-for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess knowledge-profile; do
+for skill in knowledge-collector learn kb-list kb-detail kb-delete kb-simplify kb-deep kb-assess kb-link kb-rebuild-index knowledge-profile; do
     if [ -f "$SKILLS_DIR/$skill/SKILL.md" ]; then
         INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
     else
@@ -170,20 +177,25 @@ echo "================================================"
 echo "  Installation complete!"
 echo "================================================"
 echo ""
-echo "  Skills installed: $INSTALLED_COUNT/9"
+echo "  Skills installed: $INSTALLED_COUNT/11"
 echo "  Knowledge base:   $KNOWLEDGE_DIR"
 echo ""
 echo "  Next steps:"
 echo "  1. Restart Claude Code to load new skills"
 echo "  2. Run /kb-assess to initialize your knowledge profile"
-echo "  3. Start coding - knowledge collection is automatic!"
+echo "  3. Start coding - use /learn <topic> to collect knowledge!"
 echo ""
 echo "  Commands:"
-echo "    /learn <topic>      - Mark a knowledge point"
-echo "    /kb-list            - View knowledge catalog"
-echo "    /kb-detail <entry>  - View entry details"
-echo "    /kb-simplify <entry>- Simplified explanation"
-echo "    /kb-deep <entry>    - Deep dive explanation"
-echo "    /kb-delete <entry>  - Delete an entry"
-echo "    /kb-assess          - Run self-assessment"
+echo "    /learn <topic>        - Mark a knowledge point"
+echo "    /kb-list              - View knowledge catalog"
+echo "    /kb-detail <entry>    - View entry details"
+echo "    /kb-simplify <entry>  - Simplified explanation"
+echo "    /kb-deep <entry>      - Deep dive explanation"
+echo "    /kb-delete <entry>    - Delete an entry"
+echo "    /kb-link <A> <B>      - Link two entries"
+echo "    /kb-rebuild-index     - Rebuild index from files"
+echo "    /kb-assess            - Run self-assessment"
+echo ""
+echo "  Note: If upgrading from a previous version with 技/道 directories,"
+echo "  run: bash migrate.sh  (or .\\migrate.ps1 on Windows)"
 echo ""
