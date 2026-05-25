@@ -6,11 +6,12 @@ A knowledge gap tracking system for Claude Code. Automatically identifies and co
 
 ## Features
 
-- **Auto Collection**: Claude proactively identifies your knowledge gaps during coding and records them
+- **Auto Collection**: Claude proactively identifies your knowledge gaps during coding and records them (opt-in, requires CLAUDE.md configuration)
 - **Manual Tagging**: Use `/learn <topic>` to tag any knowledge point of interest at any time
 - **Categorized Management**: Knowledge is divided into two categories: "术" (Practical Skills) and "道" (Principles & Theory)
-- **On-demand Learning**: Switch between simplified and in-depth explanations, with optional focus direction
+- **On-demand Learning**: Switch between simplified and in-depth explanations, original entries remain untouched, with optional focus direction
 - **Structured Index**: Automatically maintains search-index.json for tag-based search and quick retrieval
+- **Index Recovery**: Use `/kb-rebuild-index` to rebuild indexes from filesystem, fixing inconsistencies
 - **Knowledge Profile**: Build and maintain your knowledge capability model through self-assessment + quizzes
 - **Global Effect**: Shared across projects, knowledge base accumulates continuously
 
@@ -24,9 +25,10 @@ A knowledge gap tracking system for Claude Code. Automatically identifies and co
 | `/kb-delete <entry>` | Delete an entry |
 | `/kb-simplify <entry> [direction]` | Simplified explanation (with optional focus direction) |
 | `/kb-deep <entry> [direction]` | In-depth explanation (with optional focus direction) |
-| `/kb-assess` | Self-assessment questionnaire (initialize/refresh knowledge profile) |
+| `/kb-assess` | Self-assessment questionnaire (initialize/refresh knowledge profile, supports batch testing) |
+| `/kb-rebuild-index` | Rebuild index from filesystem (fix inconsistencies) |
 
-Additionally, `knowledge-collector` and `knowledge-profile` are automatically triggered by Claude during coding and do not need to be invoked manually.
+Additionally, `knowledge-collector` (requires opt-in config) and `knowledge-profile` are automatically triggered by Claude during coding and do not need to be invoked manually.
 
 ## Installation
 
@@ -87,10 +89,9 @@ Claude will ask about your role, experience, and provide assessment questions fo
 
 ### 2. Daily Usage
 
-Just proceed with vibe coding as usual. Claude will work in the background to:
+Just proceed with vibe coding as usual. If you've enabled auto-collection (see Configuration below), Claude will work in the background to:
 - Identify knowledge gaps based on your questions and coding style
 - Automatically record and provide a one-line notification when confidence is high
-- Ask for confirmation when uncertain
 
 You can also manually tag at any time:
 
@@ -132,7 +133,7 @@ The system avoids repeating previously asked questions and only generates new as
 type: 技
 category: python
 created: 2026-05-19
-level: brief | simplified | detailed
+level: brief
 status: new | reviewed
 ---
 # Topic Name
@@ -143,6 +144,8 @@ status: new | reviewed
 ## Common Pitfalls
 ```
 
+In-depth (`/kb-deep`) and simplified (`/kb-simplify`) versions are saved as separate files and do not overwrite the original entry.
+
 ### "道" Entries (Principles & Theory)
 
 ```markdown
@@ -150,7 +153,7 @@ status: new | reviewed
 type: 道
 category: distributed-systems
 created: 2026-05-19
-level: brief | simplified | detailed
+level: brief
 status: new | reviewed
 ---
 # Topic Name
@@ -163,11 +166,24 @@ status: new | reviewed
 
 ## Configuration
 
-Behavior variables can be adjusted in `skills/knowledge-collector/SKILL.md`:
+### Enable Auto-Collection (Optional)
+
+Add the following to your project or global CLAUDE.md to enable automatic knowledge collection:
+
+```markdown
+# Knowledge Tracker Settings
+knowledge-collector: true
+```
+
+Without this config, you can only collect knowledge manually via `/learn`.
+
+### Behavior Variables
+
+Adjustable in `skills/knowledge-collector/SKILL.md`:
 
 ```yaml
 AUTO_NOTIFY_ONLY: true       # true = only notify (no prompt) when confidence is high
-ASK_ON_UNCERTAIN: true       # true = ask user for confirmation when uncertain
+BACKGROUND_EXPLAIN: true     # true = generate detailed content in background
 ```
 
 ## File Structure
@@ -175,7 +191,7 @@ ASK_ON_UNCERTAIN: true       # true = ask user for confirmation when uncertain
 ```
 ~/.claude/
 ├── skills/                          # Skills directory
-│   ├── knowledge-collector/SKILL.md  # Auto-detect knowledge gaps (Claude internal)
+│   ├── knowledge-collector/SKILL.md  # Auto-detect knowledge gaps (opt-in, requires config)
 │   ├── learn/SKILL.md                # /learn manual knowledge tagging
 │   ├── kb-list/SKILL.md
 │   ├── kb-detail/SKILL.md
@@ -183,6 +199,7 @@ ASK_ON_UNCERTAIN: true       # true = ask user for confirmation when uncertain
 │   ├── kb-simplify/SKILL.md
 │   ├── kb-deep/SKILL.md
 │   ├── kb-assess/SKILL.md
+│   ├── kb-rebuild-index/SKILL.md     # /kb-rebuild-index rebuild index
 │   └── knowledge-profile/SKILL.md
 │
 └── knowledge/                       # Knowledge base data
@@ -192,12 +209,14 @@ ASK_ON_UNCERTAIN: true       # true = ask user for confirmation when uncertain
     ├── assess-history.json          # Assessment history (avoid duplicates)
     ├── 技/                          # Practical skills
     │   └── {category}/
-    │       ├── _catalog.md
-    │       └── {topic}.md
+    │       ├── {topic}.md            # Original entry (brief)
+    │       ├── {topic}.detailed.md   # In-depth version (/kb-deep)
+    │       └── {topic}.simplified.md # Simplified version (/kb-simplify)
     └── 道/                          # Principles & theory
         └── {category}/
-            ├── _catalog.md
-            └── {topic}.md
+            ├── {topic}.md
+            ├── {topic}.detailed.md
+            └── {topic}.simplified.md
 ```
 
 ### search-index.json Structure
@@ -236,7 +255,9 @@ Field descriptions:
 | `tags` | Keywords for search and filtering |
 | `related` | List of related entry IDs |
 | `profile_domains` | Corresponding domains in the knowledge profile |
-| `level` | Current detail level: brief / simplified / detailed |
+| `level` | Original entry detail level: brief (default) |
+| `has_detailed` | Whether a .detailed.md file exists |
+| `has_simplified` | Whether a .simplified.md file exists |
 | `status` | new (newly added) or reviewed (already reviewed) |
 | `path` | File path relative to knowledge/ |
 | `summary` | One-sentence summary |
@@ -253,6 +274,7 @@ rm -rf ~/.claude/skills/kb-delete
 rm -rf ~/.claude/skills/kb-simplify
 rm -rf ~/.claude/skills/kb-deep
 rm -rf ~/.claude/skills/kb-assess
+rm -rf ~/.claude/skills/kb-rebuild-index
 rm -rf ~/.claude/skills/knowledge-profile
 
 # Remove knowledge base data (caution! This will delete all collected knowledge)

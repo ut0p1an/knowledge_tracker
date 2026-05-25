@@ -6,11 +6,12 @@
 
 ## Features
 
-- **自动收集**：Claude 在 coding 过程中主动识别你的知识盲区并记录
+- **自动收集**：开启后，Claude 在 coding 过程中主动识别你的知识盲区并记录（需在 CLAUDE.md 中配置启用）
 - **手动标记**：使用 `/learn <topic>` 随时标记感兴趣的知识点
 - **分类管理**：知识分为"技"（实践技能）和"道"（原理理论）两类
-- **按需学习**：支持精简版和深入版讲解切换，可指定方向
+- **按需学习**：支持精简版和深入版讲解，原始条目不受影响，可指定方向
 - **结构化索引**：自动维护 search-index.json，支持标签搜索和快速检索
+- **索引修复**：使用 `/kb-rebuild-index` 从文件系统重建索引，解决不一致问题
 - **知识画像**：通过自评+客观题问卷建立和维护你的知识能力模型
 - **全局生效**：跨项目共享，知识库持续积累
 
@@ -24,9 +25,10 @@
 | `/kb-delete <entry>` | 删除条目 |
 | `/kb-simplify <entry> [方向]` | 精简版讲解（可指定方向） |
 | `/kb-deep <entry> [方向]` | 深入版讲解（可指定方向） |
-| `/kb-assess` | 自评问卷（初始化/刷新知识画像） |
+| `/kb-assess` | 自评问卷（初始化/刷新知识画像，支持分批测试） |
+| `/kb-rebuild-index` | 从文件系统重建索引（修复不一致） |
 
-另外，`knowledge-collector` 和 `knowledge-profile` 会在 coding 过程中由 Claude 自动触发，无需手动调用。
+另外，`knowledge-collector`（需配置启用）和 `knowledge-profile` 会在 coding 过程中由 Claude 自动触发，无需手动调用。
 
 ## 安装
 
@@ -87,10 +89,9 @@ Claude 会询问你的角色、经验、并对各领域给出评估问卷，建�
 
 ### 2. 日常使用
 
-正常进行 vibe coding 即可。Claude 会在后台：
+正常进行 vibe coding 即可。如果你启用了自动收集（见下方配置段），Claude 会在后台：
 - 根据你的提问和代码风格判断知识盲区
 - 高确信时自动记录并给出一行提示
-- 不确信时询问你是否需要记录
 
 你也可以随时手动标记：
 
@@ -132,7 +133,7 @@ Claude 会询问你的角色、经验、并对各领域给出评估问卷，建�
 type: 技
 category: python
 created: 2026-05-19
-level: brief | simplified | detailed
+level: brief
 status: new | reviewed
 ---
 # Topic Name
@@ -143,6 +144,8 @@ status: new | reviewed
 ## 常见陷阱
 ```
 
+深入版（`/kb-deep` 生成）和精简版（`/kb-simplify` 生成）保存为独立文件，不覆盖原始条目。
+
 ### "道"类条目（原理理论）
 
 ```markdown
@@ -150,7 +153,7 @@ status: new | reviewed
 type: 道
 category: distributed-systems
 created: 2026-05-19
-level: brief | simplified | detailed
+level: brief
 status: new | reviewed
 ---
 # Topic Name
@@ -163,11 +166,24 @@ status: new | reviewed
 
 ## 配置
 
-在 `skills/knowledge-collector/SKILL.md` 中可以调整行为变量：
+### 启用自动收集（可选）
+
+在项目或全局 CLAUDE.md 中添加以下配置，开启自动知识收集：
+
+```markdown
+# Knowledge Tracker Settings
+knowledge-collector: true
+```
+
+不配置则只能通过 `/learn` 手动收集。
+
+### 行为变量
+
+在 `skills/knowledge-collector/SKILL.md` 中可以调整：
 
 ```yaml
 AUTO_NOTIFY_ONLY: true       # true = 高确信时只通知不询问
-ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
+BACKGROUND_EXPLAIN: true     # true = 后台生成详细内容
 ```
 
 ## 文件结构
@@ -175,7 +191,7 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 ```
 ~/.claude/
 ├── skills/                          # Skills 目录
-│   ├── knowledge-collector/SKILL.md  # 自动检测知识盲区（Claude 内部触发）
+│   ├── knowledge-collector/SKILL.md  # 自动检测知识盲区（opt-in，需配置）
 │   ├── learn/SKILL.md                # /learn 手动标记知识点
 │   ├── kb-list/SKILL.md
 │   ├── kb-detail/SKILL.md
@@ -183,6 +199,7 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 │   ├── kb-simplify/SKILL.md
 │   ├── kb-deep/SKILL.md
 │   ├── kb-assess/SKILL.md
+│   ├── kb-rebuild-index/SKILL.md     # /kb-rebuild-index 重建索引
 │   └── knowledge-profile/SKILL.md
 │
 └── knowledge/                       # 知识库数据
@@ -192,12 +209,14 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
     ├── assess-history.json          # 问卷历史（避免重复）
     ├── 技/                          # 实践技能
     │   └── {category}/
-    │       ├── _catalog.md
-    │       └── {topic}.md
+    │       ├── {topic}.md            # 原始条目（brief）
+    │       ├── {topic}.detailed.md   # 深入版（/kb-deep 生成）
+    │       └── {topic}.simplified.md # 精简版（/kb-simplify 生成）
     └── 道/                          # 原理理论
         └── {category}/
-            ├── _catalog.md
-            └── {topic}.md
+            ├── {topic}.md
+            ├── {topic}.detailed.md
+            └── {topic}.simplified.md
 ```
 
 ### search-index.json 结构
@@ -236,7 +255,9 @@ ASK_ON_UNCERTAIN: true       # true = 不确信时询问用户确认
 | `tags` | 关键词标签，用于搜索和筛选 |
 | `related` | 关联条目 ID 列表 |
 | `profile_domains` | 对应知识画像中的领域 |
-| `level` | 当前详细程度：brief / simplified / detailed |
+| `level` | 原始条目详细程度：brief（默认） |
+| `has_detailed` | 是否有 .detailed.md 文件 |
+| `has_simplified` | 是否有 .simplified.md 文件 |
 | `status` | new（新增）或 reviewed（已复习） |
 | `path` | 相对于 knowledge/ 的文件路径 |
 | `summary` | 一句话摘要 |
@@ -253,6 +274,7 @@ rm -rf ~/.claude/skills/kb-delete
 rm -rf ~/.claude/skills/kb-simplify
 rm -rf ~/.claude/skills/kb-deep
 rm -rf ~/.claude/skills/kb-assess
+rm -rf ~/.claude/skills/kb-rebuild-index
 rm -rf ~/.claude/skills/knowledge-profile
 
 # 删除知识库数据（谨慎！会清除所有已收集的知识）
