@@ -56,9 +56,9 @@ If a direction is provided:
 {prerequisites as bullet list}
 ```
 
-3. Update the entry file's frontmatter: `level: simplified`
-4. Update search-index.json: find the entry by `id` and set `level: "simplified"`, update `last_updated`
+3. **Write to separate file** — save the simplified content to `{entry-name}.simplified.md` in the same directory as the original entry. If the file already exists, overwrite it.
+4. Update search-index.json: find the entry by `id`, add `"has_simplified": true`, update `last_updated`
 5. Output the simplified version
 6. Remind user:
-   > 如需恢复详细版本，使用 `/kb-deep {entry}`
+   > 原始条目保持不变。如需详细版本，使用 `/kb-deep {entry}`
    > 如需指定方向精简，使用 `/kb-simplify {entry} <方向描述>`

@@ -40,7 +40,12 @@ Load and display the full content of a specific knowledge entry.
 
 ## Display
 
-Show the full markdown content of the entry file as-is. After display, remind:
+Show the full markdown content of the entry file as-is. Additionally check if `{entry}.detailed.md` or `{entry}.simplified.md` exist in the same directory — if so, note available versions.
+
+After display, remind:
 - `/kb-simplify <entry> [方向]` — 精简版本（可指定方向）
 - `/kb-deep <entry> [方向]` — 深入讲解（可指定方向）
 - `/kb-delete <entry>` — 删除此条目
+
+If detailed/simplified versions exist, also show:
+> 📂 此条目还有: [detailed 版本] [simplified 版本] — 使用 `/kb-detail <entry> --detailed` 或 `--simplified` 查看

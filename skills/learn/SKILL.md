@@ -73,6 +73,14 @@ Then remind available follow-up commands:
 
 After outputting the confirmation, launch a background Agent to generate the entry and update all index files. Use the `Agent` tool with `run_in_background: true`.
 
+### Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
+Detect the platform and use the appropriate path. In the Agent prompt, provide the resolved absolute path directly.
+
 ### Agent Prompt Construction
 
 Build the prompt by filling in the following template with the values determined during the synchronous steps:
@@ -85,37 +93,35 @@ Build the prompt by filling in the following template with the values determined
 - 类型: {技|道}
 - 分类: {category}
 - 文件ID (slug): {topic-slug}
-- 条目文件路径: ~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md
-- 用户画像路径: ~/.claude/knowledge/profile.md
+- 知识库根目录: {resolved KB_ROOT absolute path}
+- 条目文件路径: {KB_ROOT}/{技|道}/{category}/{topic-slug}.md
+- 用户画像路径: {KB_ROOT}/profile.md
 
 ## 步骤
 
 ### 1. 读取用户画像
-读取 `~/.claude/knowledge/profile.md`，了解用户背景和现有知识水平，以便生成贴合用户水平的内容。
+读取 `{KB_ROOT}/profile.md`，了解用户背景和现有知识水平，以便生成贴合用户水平的内容。
 
 ### 2. 创建目录（如需要）
-确保 `~/.claude/knowledge/{技|道}/{category}/` 目录存在。
+确保 `{KB_ROOT}/{技|道}/{category}/` 目录存在。
 
 ### 3. 生成条目文件
 根据类型生成条目内容并写入文件。
 
 {INSERT_TEMPLATE_FOR_TYPE — see "Entry Templates" below}
 
-### 4. 更新分类目录
-读取 `~/.claude/knowledge/{技|道}/{category}/_catalog.md`（若不存在则新建），添加本条目的一行描述。
+### 4. 更新 INDEX.md
+读取 `{KB_ROOT}/INDEX.md`，在对应的「技」或「道」章节下添加条目链接。更新底部统计数字。
 
-### 5. 更新 INDEX.md
-读取 `~/.claude/knowledge/INDEX.md`，在对应的「技」或「道」章节下添加条目链接。更新底部统计数字。
-
-### 6. 更新 search-index.json
-读取 `~/.claude/knowledge/search-index.json`，向 entries 数组追加：
+### 5. 更新 search-index.json
+读取 `{KB_ROOT}/search-index.json`，向 entries 数组追加：
 {INSERT_SEARCH_INDEX_ENTRY — see "Search Index Entry" below}
 更新 `last_updated` 为当前日期。
 
-### 7. 更新 profile.md
-读取 `~/.claude/knowledge/profile.md`，在相关领域调整评级或在「待学习」区域添加新条目。
+### 6. 更新 profile.md
+读取 `{KB_ROOT}/profile.md`，在相关领域调整评级或在「待学习」区域添加新条目。
 
-### 8. 发送通知
+### 7. 发送通知
 使用 PushNotification 工具通知用户：「{Topic Name}」知识条目已生成完成
 ```
 

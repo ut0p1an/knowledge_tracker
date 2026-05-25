@@ -9,6 +9,14 @@ description: Use when the user wants to initialize or refresh their knowledge pr
 
 Guide the user through a knowledge self-assessment questionnaire to build or refresh their knowledge profile. Uses objective quiz questions (multiple choice, true/false, fill-in-the-blank) to verify self-rated skill levels. Saves questions to avoid repetition across sessions.
 
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
+All paths below (profile.md, assess-history.json, etc.) are relative to `KB_ROOT`.
+
 ## Workflow
 
 ```dot
@@ -98,8 +106,31 @@ After self-rating is complete, before starting the quiz:
 Options:
 - **开始测试** — "通过客观题精确验证各领域掌握程度"
 - **跳过测试，直接保存** — "使用自评分数生成画像，后续可随时重新评估"
+- **分批测试** — "每次只测试 2-3 个领域，下次可以 /kb-assess 继续"
 
 If user chooses to skip: go directly to Profile Generation using raw self-rated scores.
+
+If user chooses 分批测试: only quiz the first 2-3 domains rated 2-4. Save progress to `assess-history.json` (add `pending_domains` field listing domains not yet quizzed). On next `/kb-assess`, detect pending domains and offer to continue.
+
+## Incremental Assessment State
+
+When 分批测试 is active, save state in `assess-history.json`:
+
+```json
+{
+  "last_assessed": "2026-05-25",
+  "pending_domains": ["distributed-systems", "devops", "algorithms"],
+  "completed_domains": ["python", "web"],
+  "self_ratings": {"python": 3, "web": 2, "distributed-systems": 3, ...},
+  "sessions": [...],
+  "asked_questions": [...]
+}
+```
+
+On next `/kb-assess` invocation, if `pending_domains` is non-empty:
+1. Show: "上次评估未完成，还有 {N} 个领域待测试：{list}"
+2. Ask: "继续测试 / 重新开始 / 跳过直接保存"
+3. If 继续: quiz only the pending domains (2-3 at a time)
 
 ## Phase 3: Objective Quiz
 

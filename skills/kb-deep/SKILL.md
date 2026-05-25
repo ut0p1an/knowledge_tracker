@@ -118,9 +118,10 @@ level: detailed
 3. {step 3}: {what to study}
 ```
 
-3. Update the entry file's frontmatter: `level: detailed`
-4. Update search-index.json: find the entry by `id` and set `level: "detailed"`, update `last_updated`
+3. **Write to separate file** — save the expanded content to `{entry-name}.detailed.md` in the same directory as the original entry. If the file already exists, overwrite it (supports repeated deep dives that refine the content).
+4. Update search-index.json: find the entry by `id`, add `"has_detailed": true`, update `last_updated`
 5. Output the expanded version
 6. Remind user:
-   > 如需精简版本，使用 `/kb-simplify {entry}`
+   > 原始条目保持不变。如需精简版本，使用 `/kb-simplify {entry}`
    > 如需指定方向深入，使用 `/kb-deep {entry} <方向描述>`
+   > 再次执行 `/kb-deep {entry} [新方向]` 将更新 detailed 版本

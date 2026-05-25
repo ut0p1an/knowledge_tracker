@@ -10,6 +10,14 @@ user-invocable: false
 
 Internal skill that maintains the user's knowledge profile. Claude reads this before deciding whether to collect a knowledge point.
 
+## Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
+Profile is at `{KB_ROOT}/profile.md`.
+
 ## When to Activate
 
 - Before `knowledge-collector` auto-detection decisions

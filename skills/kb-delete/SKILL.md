@@ -18,7 +18,7 @@ Delete a specific knowledge entry and update all index files.
    > 确认删除「{entry name}」（{type}/{category}）？[Y/n]
 4. On confirmation:
    - Delete the entry `.md` file
-   - Remove entry from `~/.claude/knowledge/{技|道}/{category}/_catalog.md`
+   - Delete `{entry}.detailed.md` and `{entry}.simplified.md` if they exist
    - Remove entry from `~/.claude/knowledge/INDEX.md`
    - Remove entry from `~/.claude/knowledge/search-index.json`:
      - Read the JSON, filter out the entry by `id` from the `entries` array

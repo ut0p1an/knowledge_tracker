@@ -1,41 +1,48 @@
 ---
 name: knowledge-collector
-description: Always-on knowledge gap detector. In ANY conversation scenario (coding, Q&A, discussion, debugging, learning), detect concepts the user is unfamiliar with and silently record them. This is NOT limited to coding sessions. Triggers on questions about concepts, requests for explanation, confusion signals, or topics below user's profile level.
+description: Knowledge gap detector (opt-in). Only active when user has configured `knowledge-collector: true` in their CLAUDE.md or project CLAUDE.md. Detects concepts the user is unfamiliar with and silently records them. Triggers on questions about concepts, requests for explanation, confusion signals, or topics below user's profile level.
 user-invocable: false
 ---
 
-# Knowledge Collector (Always-On Auto-Detection)
+# Knowledge Collector (Opt-In Auto-Detection)
 
 ## Overview
 
-Continuously monitor ALL interactions for knowledge gaps and automatically collect them into the knowledge base. This skill operates in every scenario — coding, Q&A, theoretical discussions, debugging, architecture talks, learning sessions, etc.
+Monitor interactions for knowledge gaps and automatically collect them into the knowledge base. This skill operates in every scenario — coding, Q&A, theoretical discussions, debugging, architecture talks, learning sessions, etc.
 
 **Key principle: detect → record → explain in background → never interrupt the main flow.**
+
+## Activation Requirement
+
+**This skill is OFF by default.** It only activates when the user has explicitly configured it.
+
+Check for activation: look for `knowledge-collector: true` in the user's CLAUDE.md (project or global). If not present, this skill does NOT run — skip entirely.
+
+Example CLAUDE.md configuration:
+```markdown
+# Knowledge Tracker Settings
+knowledge-collector: true
+```
 
 ## Configuration
 
 ```yaml
 AUTO_NOTIFY_ONLY: true       # high confidence: just notify, don't ask
-ASK_ON_UNCERTAIN: true       # uncertain cases: ask user before recording
 BACKGROUND_EXPLAIN: true     # launch sub-agent to generate detailed explanation
 ```
 
-## When to Use (ALL scenarios)
+## When to Use (High Confidence Only)
 
-### High Confidence Signals (auto-record, no asking)
+**Only auto-record when signals are strong and unambiguous:**
 
 **In Q&A / Discussion:**
 - User asks "X是什么" / "什么是X" / "X是为了什么" about a concept
 - User asks for explanation of a term, principle, or mechanism
-- User asks follow-up questions that reveal incomplete understanding (e.g., "为什么这里要..." / "这个参数是干什么的")
-- User asks about relationships between concepts ("X和Y有什么区别")
 - User explicitly requests to understand something ("给我讲解一下X")
 
 **In Coding:**
 - User asks "这行什么意思" / "这个函数做什么"
 - User makes errors indicating fundamental misunderstanding
-- User copies code without understanding and asks about it
-- User's code shows anti-patterns suggesting unfamiliarity
 
 **In Debugging:**
 - User asks about error messages or concepts within errors
@@ -44,13 +51,6 @@ BACKGROUND_EXPLAIN: true     # launch sub-agent to generate detailed explanation
 **Universal:**
 - User says "我不太懂", "没听过", "第一次见", "记一下"
 - Topic is rated < 4 in user's profile AND user is clearly learning it (not just mentioning it)
-
-### Uncertain Signals (ask first)
-
-- User writes working but non-idiomatic code (may already know the better way)
-- User asks about best practices (may already know basics)
-- Topic is adjacent to user's known expertise (★★★+) — they might just be confirming
-- User is comparing approaches (may understand both, just choosing)
 
 ## When NOT to Use
 
@@ -65,18 +65,16 @@ BACKGROUND_EXPLAIN: true     # launch sub-agent to generate detailed explanation
 
 ```dot
 digraph collector {
-    "Any user interaction" -> "Detect potential gap?";
+    "Any user interaction" -> "Check opt-in config?";
+    "Check opt-in config?" -> "Skip" [label="not enabled"];
+    "Check opt-in config?" -> "Detect potential gap?" [label="enabled"];
     "Detect potential gap?" -> "Skip" [label="no gap"];
     "Detect potential gap?" -> "Read profile.md + search-index.json";
     "Read profile.md + search-index.json" -> "Already known/recorded?";
     "Already known/recorded?" -> "Skip" [label="profile >=4 or entry exists"];
-    "Already known/recorded?" -> "Assess confidence" [label="gap confirmed"];
-    "Assess confidence" -> "High: notify + record" [label="high"];
-    "Assess confidence" -> "Ask user" [label="uncertain"];
-    "Ask user" -> "Record" [label="yes"];
-    "Ask user" -> "Skip" [label="no"];
-    "High: notify + record" -> "Classify + Record";
-    "Record" -> "Classify + Record";
+    "Already known/recorded?" -> "High confidence?" [label="gap confirmed"];
+    "High confidence?" -> "Classify + Record" [label="yes"];
+    "High confidence?" -> "Skip" [label="no — don't guess"];
     "Classify + Record" -> "Launch background Agent";
     "Launch background Agent" -> "Continue main conversation (no interruption)";
 }
@@ -114,12 +112,19 @@ The notification line should be placed at the END of your response, after you've
 
 After outputting your main response + notification, launch a background Agent (`run_in_background: true`) with a self-contained prompt to:
 
-1. Create the entry file at `~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md`
-2. Update `_catalog.md` for the category
-3. Update `INDEX.md`
-4. Update `search-index.json`
-5. Optionally update `profile.md`
-6. Send PushNotification when done
+1. Create the entry file at `{KB_ROOT}/{技|道}/{category}/{topic-slug}.md`
+2. Update `INDEX.md`
+3. Update `search-index.json`
+4. Optionally update `profile.md`
+5. Send PushNotification when done
+
+### Path Resolution
+
+The knowledge base root (`KB_ROOT`) is:
+- Linux/macOS: `$HOME/.claude/knowledge`
+- Windows: `$env:USERPROFILE\.claude\knowledge`
+
+Detect the platform and use the appropriate path. In the Agent prompt, provide the resolved absolute path directly.
 
 ### Agent Prompt Template
 
@@ -131,28 +136,26 @@ After outputting your main response + notification, launch a background Agent (`
 - 类型: {技|道}
 - 分类: {category}
 - 文件ID (slug): {topic-slug}
-- 条目文件路径: ~/.claude/knowledge/{技|道}/{category}/{topic-slug}.md
-- 用户画像路径: ~/.claude/knowledge/profile.md
+- 知识库根目录: {resolved KB_ROOT absolute path}
+- 条目文件路径: {KB_ROOT}/{技|道}/{category}/{topic-slug}.md
+- 用户画像路径: {KB_ROOT}/profile.md
 - 用户背景摘要: {从profile中提取的相关信息}
 
 ## 步骤
 
 ### 1. 创建目录（如需要）
-确保 `~/.claude/knowledge/{技|道}/{category}/` 目录存在。
+确保 `{KB_ROOT}/{技|道}/{category}/` 目录存在。
 
 ### 2. 生成条目文件
 {根据类型插入对应模板 — 见下方}
 
-### 3. 更新分类目录
-读取 `~/.claude/knowledge/{技|道}/{category}/_catalog.md`（若不存在则新建），添加本条目。
+### 3. 更新 INDEX.md
+读取 `{KB_ROOT}/INDEX.md`，在对应章节下添加条目链接，更新统计数字。
 
-### 4. 更新 INDEX.md
-读取 `~/.claude/knowledge/INDEX.md`，在对应章节下添加条目链接，更新统计数字。
+### 4. 更新 search-index.json
+读取 `{KB_ROOT}/search-index.json`，追加条目，更新 last_updated。
 
-### 5. 更新 search-index.json
-读取 `~/.claude/knowledge/search-index.json`，追加条目，更新 last_updated。
-
-### 6. 发送通知
+### 5. 发送通知
 使用 PushNotification 通知用户：「{Topic Name}」知识条目已生成完成
 ```
 
