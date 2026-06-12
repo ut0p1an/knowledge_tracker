@@ -46,7 +46,7 @@ The knowledge base root (`KB_ROOT`) is:
 
 ## Display
 
-Show the full markdown content of the entry file as-is.
+Show the full markdown content of the entry file as-is. The top part of the file serves as the simplified summary, and the rest is the detailed content.
 
 ### Linked Entries Section
 
@@ -60,17 +60,9 @@ After the main content, if the entry has `related` entries in search-index.json 
 
 Read linked entries' metadata from search-index.json to show type, category, and summary.
 
-### Version Check
-
-Additionally check if `{entry}.detailed.md` or `{entry}.simplified.md` exist in the same directory — if so, note available versions.
-
-If detailed/simplified versions exist, show:
-> 📂 此条目还有: [detailed 版本] [simplified 版本] — 使用 `/kb-detail <entry> --detailed` 或 `--simplified` 查看
-
 ### Actions Reminder
 
 After display, remind:
-- `/kb-simplify <entry> [方向]` — 精简版本（可指定方向）
-- `/kb-deep <entry> [方向]` — 深入讲解（可指定方向）
+- `/kb-deep <entry> [方向]` — 追加深入讲解（可指定方向）
 - `/kb-delete <entry>` — 删除此条目
 - `/kb-link <entry> <other>` — 关联其他条目

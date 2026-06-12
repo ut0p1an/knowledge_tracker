@@ -8,23 +8,18 @@ argument-hint: <entry-name> [direction]
 
 ## Overview
 
-Expand a knowledge entry into a comprehensive learning document with full explanations, multiple examples, and contextual connections. Optionally accepts a direction hint to focus the deep dive on a specific aspect.
+Append a new, in-depth section to an existing knowledge entry. Each time this command is used, it adds more detail, allowing for progressive and iterative learning. Optionally accepts a direction hint to focus the deep dive on a specific aspect.
 
 ## Argument Parsing
 
 Parse `$ARGUMENTS` to extract:
 - **entry name** (required): the knowledge entry to expand
-- **direction** (optional): extra description guiding the focus of the deep dive
+- **direction** (optional): extra description guiding the focus of the new appended section
 
 Examples:
-- `/kb-deep decorators` → full deep dive on decorators
-- `/kb-deep decorators 在类中的应用` → deep dive focused on decorator usage in classes
-- `/kb-deep cap-theorem 结合实际项目选型` → deep dive focused on practical system design choices
-
-If a direction is provided, adjust the expanded content to emphasize that aspect:
-- Weight sections related to the direction more heavily (more examples, more detail)
-- Add a dedicated section addressing the direction if it doesn't fit existing sections
-- Still include the full structure, but treat the direction as the primary lens
+- `/kb-deep decorators` → Appends a new general deep-dive section to the `decorators.md` file.
+- `/kb-deep decorators 在类中的应用` → Appends a section focused on decorator usage in classes.
+- `/kb-deep cap-theorem 结合实际项目选型` → Appends a section focused on practical system design choices.
 
 ## Path Resolution
 
@@ -34,70 +29,40 @@ The knowledge base root (`KB_ROOT`) is:
 
 ## Workflow
 
-1. Find the entry via `{KB_ROOT}/search-index.json` (match by `id`, then `title` partial match) and read the file using its `path` field. Fallback: scan `{KB_ROOT}/*/` for matching filename.
-2. Parse direction from arguments (if any)
-3. Expand it based on type, focusing on direction when provided:
+1.  **Find Entry**: Locate the entry's markdown file via `{KB_ROOT}/search-index.json` (match by `id`, then `title` partial match) and get its `path`. Fallback: scan `{KB_ROOT}/*/` for a matching filename.
+2.  **Parse Direction**: Extract the optional `direction` from the arguments.
+3.  **Generate New Section**: Create a new markdown section to be appended. This section should be structured as a comprehensive deep dive on the topic, guided by the `direction` if provided. To distinguish multiple deep dives, the new section's title should be unique, e.g., `## 深入探讨 ({{current_date}}) - {direction or Topic}`.
+4.  **Append to File**: Read the existing content of the entry's file and append the newly generated section to the end of it. The file should be saved in place.
+5.  **Update Index**: After successfully appending the content, update the entry's `lastModified` timestamp in `{KB_ROOT}/search-index.json`.
 
-### For "技" entries — expand to:
+### Appended Section Structure (Example for "技" entry)
+
+The content generated for the new section should follow a structure similar to the original deep dive, but framed as an additional block of knowledge.
 
 ```markdown
+
 ---
-type: 技
-level: detailed
----
-# {Topic}
+## 深入探讨 ({{current_date}}) - {Direction/Topic}
 
-## 是什么
-{detailed explanation, 2-3 paragraphs}
+### 核心概念回顾
+{Briefly recap the core concept in the context of this new deep dive.}
 
-## 设计动机
-{why this technique exists, what problem it solves}
+### {Specific Aspect 1}
+{Detailed explanation, code examples, etc.}
 
-## 使用场景
-{3-5 scenarios with context}
+### {Specific Aspect 2}
+{Detailed explanation, code examples, etc.}
 
-## 完整用法
+### 实践中的考量
+{Points to consider when applying this knowledge in real-world scenarios.}
 
-### 基础示例
-{annotated code example}
-
-### 进阶示例
-{more complex real-world example}
-
-### 与其他技术的配合
-{how it integrates with related tools/patterns}
-
-## 内部原理
-{how it works under the hood, simplified}
-
-## 最佳实践
-- {practice 1 with reason}
-- {practice 2 with reason}
-
-## 常见陷阱与解决
-| 陷阱 | 原因 | 解决方案 |
-|------|------|----------|
-| ... | ... | ... |
-
-## 延伸阅读方向
-- {next topic 1}
-- {next topic 2}
+### 关联知识点
+- **{Related Topic A}**: {Brief explanation of the connection.}
+- **{Related Topic B}**: {Brief explanation of the connection.}
 ```
 
-### For "道" entries — expand to:
+The key is that this is an **append-only** operation on the existing file, making the knowledge entry richer over time.
 
-```markdown
----
-type: 道
-level: detailed
----
-# {Topic}
-
-## 概念说明
-{thorough explanation, 3-5 paragraphs}
-
-## 历史背景
-{when and why this principle emerged}
 
 ## 核心思想
 {the fundamental insight, explained simply}

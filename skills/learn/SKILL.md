@@ -12,21 +12,30 @@ Manually add a knowledge point to the knowledge base. This is the user-facing co
 
 ## Workflow
 
-```dot
-digraph learn {
-    "Parse $ARGUMENTS" -> "Read profile.md";
-    "Read profile.md" -> "Already known?" ;
-    "Already known?" -> "Notify + skip" [label="yes, rated >=4"];
-    "Already known?" -> "Classify" [label="no"];
-    "Classify" -> "技 or 道?";
-    "技 or 道?" -> "Ambiguous?" [label="unclear"];
-    "Ambiguous?" -> "Ask user to clarify";
-    "Ask user to clarify" -> "Auto-suggest links";
-    "技 or 道?" -> "Auto-suggest links" [label="clear"];
-    "Auto-suggest links" -> "Output confirmation";
-    "Output confirmation" -> "Background Agent: init entry";
-}
+1.  **Parse Topic**: Extract the topic from `$ARGUMENTS`.
+2.  **Check for Duplicates**: Look in `{KB_ROOT}/search-index.json` for an existing entry with a similar title. If found, notify the user and ask if they want to use `/kb-deep` to expand it instead.
+3.  **Classify**: Determine if the topic is "技" (practical skill) or "道" (principle/theory). If ambiguous, ask the user.
+4.  **Suggest Links**: Scan the index for related entries and ask the user if they want to create links.
+5.  **Create File**: Generate a new markdown file for the entry. The file content will include a brief, one-paragraph summary at the top, followed by a clear separator.
+6.  **Update Index**: Add the new entry to `{KB_ROOT}/search-index.json`.
+7.  **Confirm**: Notify the user that the entry has been created.
+
+### Entry File Structure
+
+Each knowledge entry is a single `.md` file. The structure is as follows:
+
+```markdown
+# {Topic Title}
+
+{A concise, one-paragraph summary of the topic. This serves as the "simplified" explanation.}
+
+---
+## 深入探讨 ({{current_date}})
+
+{The initial detailed explanation begins here. Subsequent uses of /kb-deep will append more sections below this.}
 ```
+
+This structure ensures that a quick overview is always available at the top of the file, with more in-depth content following, which can be progressively expanded.
 
 ## Argument Parsing
 
@@ -38,7 +47,7 @@ digraph learn {
 
 1. **Parse topic** from `$ARGUMENTS`
 2. **Read profile** at `{KB_ROOT}/profile.md` to check existing knowledge level
-3. **Check duplicates** in `{KB_ROOT}/search-index.json` — if an entry with matching `id` or similar `title` already exists, notify and ask if user wants to update it instead
+3. **Check duplicates** in `{KB_ROOT}/search-index.json` — if an entry with matching `id` or similar `title` already exists, notify and ask if user wants to use `/kb-deep` on it instead.
 4. **Classify** as "技" (practical skill) or "道" (principle/theory):
    - If clearly practical (framework API, tool usage, coding pattern) → 技
    - If clearly theoretical (design pattern, algorithm theory, architecture principle) → 道
@@ -77,7 +86,6 @@ If links were confirmed, also show:
 
 Then remind available follow-up commands:
 - `/kb-detail {entry}` — 查看条目内容
-- `/kb-simplify {entry} [方向]` — 精简讲解
 - `/kb-deep {entry} [方向]` — 深入讲解
 
 ## Background Entry Initialization
