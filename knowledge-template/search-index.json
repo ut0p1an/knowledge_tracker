@@ -1,5 +1,19 @@
 {
   "version": 1,
   "last_updated": "",
-  "entries": []
+  "entries": [
+    {
+      "id": "example-entry",
+      "category": "general",
+      "title": "Example Entry",
+      "summary": "This is a sample entry for demonstration.",
+      "file_path": "example-entry.md",
+      "links": [],
+      "tags": [],
+      "repetitions": 0,
+      "interval": 0,
+      "easiness": 2.5,
+      "due_date": null
+    }
+  ]
 }
