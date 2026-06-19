@@ -21,7 +21,7 @@ if (-not (Test-Path $ClaudeDir)) {
 }
 
 # Check for existing skills
-$skills = @("knowledge-collector", "learn", "kb-list", "kb-detail", "kb-delete", "kb-simplify", "kb-deep", "kb-assess", "kb-link", "kb-rebuild-index", "knowledge-profile")
+$skills = @("knowledge-collector", "learn", "kb", "knowledge-profile")
 $existingCount = 0
 foreach ($skill in $skills) {
     if (Test-Path (Join-Path $SkillsDir $skill)) {
@@ -160,24 +160,24 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "  Installation complete!" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Skills installed: $installedCount/11"
+Write-Host "  Skills installed: $installedCount/4"
 Write-Host "  Knowledge base:   $KnowledgeDir"
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor Green
 Write-Host "  1. Restart Claude Code to load new skills"
-Write-Host "  2. Run /kb-assess to initialize your knowledge profile"
+Write-Host "  2. Run /kb 评估 to initialize your knowledge profile"
 Write-Host "  3. Start coding - use /learn <topic> to collect knowledge!"
 Write-Host ""
 Write-Host "  Commands:"
-Write-Host "    /learn <topic>        - Mark a knowledge point"
-Write-Host "    /kb-list              - View knowledge catalog"
-Write-Host "    /kb-detail <entry>    - View entry details"
-Write-Host "    /kb-simplify <entry>  - Simplified explanation"
-Write-Host "    /kb-deep <entry>      - Deep dive explanation"
-Write-Host "    /kb-delete <entry>    - Delete an entry"
-Write-Host "    /kb-link <A> <B>      - Link two entries"
-Write-Host "    /kb-rebuild-index     - Rebuild index from files"
-Write-Host "    /kb-assess            - Run self-assessment"
+Write-Host "    /learn <topic>           - Mark a knowledge point"
+Write-Host "    /kb                      - Browse knowledge base"
+Write-Host "    /kb <entry>              - View entry details"
+Write-Host "    /kb 深入 <entry> [方向]   - Append deep dive"
+Write-Host "    /kb 测验 [entry]          - Take a quiz"
+Write-Host "    /kb 关联 <A> <B>          - Link two entries"
+Write-Host "    /kb 删除 <entry>          - Delete an entry"
+Write-Host "    /kb 评估                  - Refresh knowledge profile"
+Write-Host "    /kb 修复                  - Rebuild index from files"
 Write-Host ""
 Write-Host "  Note: If upgrading from a previous version with 技/道 directories," -ForegroundColor Yellow
 Write-Host "  run: .\migrate.ps1" -ForegroundColor Yellow

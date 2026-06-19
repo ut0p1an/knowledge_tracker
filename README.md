@@ -8,13 +8,13 @@
 
 - **自动收集**：开启后，Claude 在 coding 过程中主动识别你的知识盲区并记录（需在 CLAUDE.md 中配置启用）
 - **手动标记**：使用 `/learn <topic>` 随时标记感兴趣的知识点
-- **知识关联**：条目之间支持双向链接，构建知识网络（创建时自动建议 + `/kb-link` 手动关联）
+- **知识关联**：条目之间支持双向链接，构建知识网络（创建时自动建议 + `/kb 关联` 手动关联）
 - **分类管理**：按领域（category）分组管理，技/道作为条目属性标记
-- **互动式学习**: 新增 `/kb-quiz` 命令，可以根据知识点内容生成测验题，通过主动回忆来巩固学习效果。
+- **互动式学习**: 新增 `/kb 测验` 命令，可以根据知识点内容生成测验题，通过主动回忆来巩固学习效果。
 - **统一存储**: 每个知识点对应一个 Markdown 文件，文件顶部是精简总结，下方是可无限追加的深入讲解区。
-- **渐进式学习**: 使用 `/kb-deep` 命令可多次对同一知识点进行深入探究，每次都会在文件末尾追加新的内容，实现知识的逐步深化。
+- **渐进式学习**: 使用 `/kb 深入` 命令可多次对同一知识点进行深入探究，每次都会在文件末尾追加新的内容，实现知识的逐步深化。
 - **结构化索引**：自动维护 `search-index.json`，支持标签搜索和快速检索。
-- **索引修复**：使用 `/kb-rebuild-index` 从文件系统重建索引，解决不一致问题。
+- **索引修复**：使用 `/kb 修复` 从文件系统重建索引，解决不一致问题。
 - **知识画像**：通过自评+客观题问卷建立和维护你的知识能力模型。
 - **全局生效**：跨项目共享，知识库持续积累。
 
@@ -22,15 +22,14 @@
 
 | 命令 | 功能 |
 | --- | --- |
-| `/learn <topic>` | 手动标记一个知识点（自动生成包含简短总结的初始文件）。 |
-| `/kb-list [category] [--tag <tag>]` | 查看知识库目录（按领域分组，支持标签筛选）。 |
-| `/kb-detail <entry>` | 查看具体条目内容（包含所有深入讲解）及关联条目。 |
-| `/kb-delete <entry>` | 删除条目（自动清理双向链接）。 |
-| `/kb-deep <entry> [方向]` | 在现有知识点上追加一次深入讲解。 |
-| `/kb-quiz [entry] [--stats]` | 对指定的知识点进行一次互动测验，或查看复习统计。留空则自动选择到期条目。 |
-| `/kb-link <entry-A> <entry-B>` | 手动关联两个条目（带关联性验证）。 |
-| `/kb-assess` | 自评问卷（初始化/刷新知识画像，支持分批测试）。 |
-| `/kb-rebuild-index` | 从文件系统重建索引（修复不一致，验证双向链接）。 |
+| `/learn <topic>` | 手动标记一个知识点 |
+| `/kb` | 知识库统一入口。自然语言描述意图即可： |
+| | — `/kb` 浏览目录 / `/kb <条目>` 查看详情 |
+| | — `/kb 深入 <条目> [方向]` 追加深入讲解 |
+| | — `/kb 测验 [条目]` 间隔重复测验 / `/kb 测验 统计` 查看复习统计 |
+| | — `/kb 关联 <A> <B>` 建立双向链接 |
+| | — `/kb 删除 <条目>` 删除条目 |
+| | — `/kb 评估` 知识画像问卷 / `/kb 修复` 重建索引 |
 
 另外，`knowledge-collector`（需配置启用）和 `knowledge-profile` 会在 coding 过程中由 Claude 自动触发，无需手动调用。
 
@@ -86,7 +85,7 @@ cp knowledge-template/search-index.json ~/.claude/knowledge/
 首次安装后，运行自评问卷：
 
 ```
-/kb-assess
+/kb 评估
 ```
 
 Claude 会询问你的角色、经验、并对各领域给出评估问卷，建立你的知识画像。
@@ -109,21 +108,26 @@ Claude 会询问你的角色、经验、并对各领域给出评估问卷，建�
 ### 3. 查看和管理知识库
 
 ```
-/kb-list              # 查看总目录（按领域分组，带摘要和关联）
-/kb-list python       # 查看 python 分类（带标签和摘要）
-/kb-list --tag 元编程  # 按标签筛选条目
-/kb-detail asyncio    # 查看具体条目及关联条目
-/kb-simplify asyncio  # 精简版
-/kb-simplify asyncio 只看语法          # 精简版，聚焦语法
-/kb-deep asyncio      # 深入版
-/kb-deep asyncio 和多线程的配合使用    # 深入版，聚焦多线程方向
-/kb-delete asyncio    # 删除（自动清理双向链接）
+/kb                         # 浏览目录 + 操作引导
+/kb python                  # 查看 python 分类
+/kb 元编程                   # 按标签筛选
+/kb asyncio                 # 查看条目详情
+/kb 深入 asyncio             # 追加深入讲解
+/kb 深入 asyncio 和多线程配合 # 深入讲解指定方向
+/kb 测验                     # 自动选到期条目复习
+/kb 测验 asyncio             # 对指定条目复习
+/kb 关联 decorators metaprogramming  # 建立关联
+/kb 删除 asyncio             # 删除（需二次确认）
+/kb 评估                     # 刷新知识画像
+/kb 修复                     # 重建索引
 ```
 
 ### 4. 管理知识关联
 
+自然语言描述即可建立关联：
+
 ```
-/kb-link decorators metaprogramming    # 手动关联两个条目
+/kb 关联 decorators metaprogramming    # 建立双向链接
 ```
 
 系统会读取两个条目内容判断关联性：
@@ -135,7 +139,7 @@ Claude 会询问你的角色、经验、并对各领域给出评估问卷，建�
 随着学习进展，定期刷新画像：
 
 ```
-/kb-assess
+/kb 评估
 ```
 
 系统会避免重复已经问过的问题，只生成新的评估题目。
@@ -161,7 +165,7 @@ links: [metaprogramming, closures]
 ## 常见陷阱
 ```
 
-深入版（`/kb-deep` 生成）和精简版（`/kb-simplify` 生成）保存为独立文件，不覆盖原始条目。
+`/kb 深入` 生成的深入讲解直接追加到原始条目文件末尾，支持多次执行持续深化，不产生独立文件。
 
 ### "道"类条目（原理理论）
 
@@ -209,16 +213,9 @@ BACKGROUND_EXPLAIN: true     # true = 后台生成详细内容
 ```
 ~/.claude/
 ├── skills/                          # Skills 目录
-│   ├── knowledge-collector/SKILL.md  # 自动检测知识盲区（opt-in，需配置）
+│   ├── kb/SKILL.md                   # /kb 统一路由器（浏览/查看/深入/测验/关联/删除/评估/修复）
 │   ├── learn/SKILL.md                # /learn 手动标记知识点
-│   ├── kb-list/SKILL.md
-│   ├── kb-detail/SKILL.md
-│   ├── kb-delete/SKILL.md
-│   ├── kb-simplify/SKILL.md
-│   ├── kb-deep/SKILL.md
-│   ├── kb-link/SKILL.md              # /kb-link 手动关联条目
-│   ├── kb-assess/SKILL.md
-│   ├── kb-rebuild-index/SKILL.md     # /kb-rebuild-index 重建索引
+│   ├── knowledge-collector/SKILL.md  # 自动检测知识盲区（opt-in，需配置）
 │   └── knowledge-profile/SKILL.md
 │
 └── knowledge/                       # 知识库数据
@@ -227,9 +224,7 @@ BACKGROUND_EXPLAIN: true     # true = 后台生成详细内容
     ├── profile.md                   # 知识画像
     ├── assess-history.json          # 问卷历史（避免重复）
     └── {category}/                  # 按领域组织的条目
-        ├── {topic}.md               # 原始条目（brief）
-        ├── {topic}.detailed.md      # 深入版（/kb-deep 生成）
-        └── {topic}.simplified.md    # 精简版（/kb-simplify 生成）
+        └── {topic}.md               # 条目文件（简明总结 + 多次深入讲解追加）
 ```
 
 ### search-index.json 结构
@@ -271,8 +266,8 @@ BACKGROUND_EXPLAIN: true     # true = 后台生成详细内容
 | `related` | 关联条目 ID 列表（双向链接，与 frontmatter `links` 同步） |
 | `profile_domains` | 对应知识画像中的领域 |
 | `level` | 原始条目详细程度：brief（默认） |
-| `has_detailed` | 是否有 .detailed.md 文件 |
-| `has_simplified` | 是否有 .simplified.md 文件 |
+| `has_detailed` | 是否有深入讲解内容（文件中含 `## 深入探讨` 段落） |
+| `has_simplified` | 保留字段（历史兼容） |
 | `status` | new（新增）或 reviewed（已复习） |
 | `path` | 相对于 knowledge/ 的文件路径 |
 | `summary` | 一句话摘要 |
